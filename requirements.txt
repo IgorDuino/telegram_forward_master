@@ -1,2 +1,7 @@
+pyrogram
 python-decouple
-telethon
+tgcrypto
+pytelegrambotapi
+sqlalchemy
+psycopg2-binary
+SQLAlchemy-serializer

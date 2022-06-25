@@ -1,3 +1,6 @@
+# telegram handler files
+.handler-saves
+
 # session files
 *.session
 
