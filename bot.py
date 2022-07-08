@@ -1,9 +1,10 @@
 from turtle import forward
 from decouple import config
-from data.db_session import global_init, create_session
-from data.models import Rule, Filter, User
+from db_session import global_init, create_session
+from models import Rule, Filter, User
 import telebot
 import menu
+
 
 api_token = config("BOT_API", cast=str)
 db_user = config('DB_USER')
@@ -352,7 +353,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Фильтр не найдено", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
             return
-        
+
         rule = get_rule_by_id(filter.rule_id)
 
         if delete_filter_by_id(filter.id):
@@ -454,6 +455,10 @@ def callback_inline(call: telebot.types.CallbackQuery):
                               message_id=call.message.message_id, text="Бот отключен", reply_markup=menu.main_menu(user.status))
 
 
-if __name__ == '__main__':
+def main():
     global_init(db_user, db_password, db_host, db_name)
     bot.infinity_polling()
+
+
+if __name__ == '__main__':
+    main()

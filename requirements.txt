@@ -5,3 +5,4 @@ pytelegrambotapi
 sqlalchemy
 psycopg2-binary
 SQLAlchemy-serializer
+alembic

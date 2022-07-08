@@ -1,19 +1,24 @@
-from pyrogram import Client, filters
-from pyrogram import types
-from decouple import config
+#!/bin/python
+
+from threading import Thread
+
+from userbot import main as userbot_main_function
+from bot import main as bot_main_function
 
 
-api_id = config('API_ID', cast=int)
-api_hash = config('API_HASH', cast=str)
-phone_number = config('PHONE_NUMBER', cast=str)
+def main():
+    userbot_thread = Thread(target=userbot_main_function)
+    bot_thread = Thread(target=bot_main_function)
 
-app = Client("account", phone_number=phone_number,
-             api_hash=api_hash, api_id=api_id)
+    userbot_thread.name = "userbot"
+    bot_thread.name = "bot"
+
+    # userbot_thread.start()
+    bot_thread.start()
+
+    # userbot_thread.join()
+    bot_thread.join()
 
 
-@app.on_message(filters.incoming)
-async def my_handler(client, message: types.messages_and_media.Message):
-    pass
-
-
-app.run()
+if __name__ == '__main__':
+    main()

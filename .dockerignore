@@ -1,0 +1,5 @@
+.env.example
+.git
+__pycache__
+LICENSE
+README.md
