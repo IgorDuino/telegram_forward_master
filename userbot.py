@@ -13,7 +13,9 @@ def main():
 
     @app.on_message(filters.incoming)
     async def my_handler(client, message: types.messages_and_media.Message):
-        pass
+        from_id = message.from_user.id
+        from_user_contact = message.from_user.contact
+        print(f"{from_id} {from_user_contact}")
 
     app.start()
 

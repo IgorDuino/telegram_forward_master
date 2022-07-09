@@ -13,11 +13,11 @@ def main():
     userbot_thread.name = "userbot"
     bot_thread.name = "bot"
 
-    # userbot_thread.start()
-    bot_thread.start()
+    userbot_thread.start()
+    # bot_thread.start()
 
-    # userbot_thread.join()
-    bot_thread.join()
+    userbot_thread.join()
+    # bot_thread.join()
 
 
 if __name__ == '__main__':
