@@ -51,28 +51,32 @@ def add_filter(chat_id):
 
 def enable_rule(rule: Rule):
     sessioin = create_session()
-    rule.is_enabled = True
+    real_rule = sessioin.query(Rule).filter(Rule.id == rule.id).first()
+    real_rule.is_enabled = True
     sessioin.commit()
     return True
 
 
 def disable_rule(rule: Rule):
     sessioin = create_session()
-    rule.is_enabled = False
+    real_rule = sessioin.query(Rule).filter(Rule.id == rule.id).first()
+    real_rule.is_enabled = False
     sessioin.commit()
     return True
 
 
 def enable_filter(filter: Filter):
     sessioin = create_session()
-    filter.is_enabled = True
+    real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
+    real_filter.is_enabled = True
     sessioin.commit()
     return True
 
 
 def disable_filter(filter: Filter):
     sessioin = create_session()
-    filter.is_enabled = False
+    real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
+    real_filter.is_enabled = False
     sessioin.commit()
     return True
 
@@ -157,6 +161,22 @@ def add_filter_replace_to_word(message: telebot.types.Message):
             message.chat.id, "Что-то пошло не так, попробуйте еще раз", reply_markup=menu.main_menu(get_user(message.chat.id)))
 
 
+def add_rule_first_user_contact_name(message: telebot.types.Message):
+    temp_rules[message.chat.id]['first_user_id'] = message.text
+
+    msg = bot.send_message(
+        message.chat.id, "Сохранил, теперь, чтобы добавить второй контакт пользователя перешлите мне любое его сообщение")
+    bot.register_next_step_handler(msg, add_rule_second_user)
+
+
+def add_rule_second_user_contact_name(message: telebot.types.Message):
+    temp_rules[message.chat.id]['second_user_id'] = message.text
+
+    msg = bot.send_message(
+        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
+    bot.register_next_step_handler(msg, add_rule_direction)
+
+
 def add_rule_first_user(message: telebot.types.Message):
     if not message.forward_from and not message.forward_sender_name:
         msg = bot.send_message(
@@ -168,8 +188,20 @@ def add_rule_first_user(message: telebot.types.Message):
         forward_id = message.forward_from.id
         forward_name = message.forward_from.first_name
     else:
-        forward_id = message.forward_sender_name
+        # there is not all the necessary data -> request a name in contacts
         forward_name = message.forward_sender_name
+
+        temp_rules[message.chat.id] = {
+            'first_user_id': None,
+            'second_user_id': None,
+            'first_user_name': forward_name,
+            'second_user_name': None,
+            'type': None
+        }
+        msg = bot.send_message(
+            message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
+        bot.register_next_step_handler(msg, add_rule_first_user_contact_name)
+        return
 
     temp_rules[message.chat.id] = {
         'first_user_id': forward_id,
@@ -195,13 +227,20 @@ def add_rule_second_user(message: telebot.types.Message):
     if message.forward_from:
         forward_id = message.forward_from.id
         forward_name = message.forward_from.first_name
+
     else:
-        forward_id = message.forward_sender_name
+        # there is not all the necessary data -> request a name in contacts
         forward_name = message.forward_sender_name
+
+        temp_rules[message.chat.id]['second_user_name'] = forward_name
+
+        msg = bot.send_message(
+            message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
+        bot.register_next_step_handler(msg, add_rule_second_user_contact_name)
+        return
 
     temp_rules[message.chat.id]['second_user_id'] = forward_id
     temp_rules[message.chat.id]['second_user_name'] = forward_name
-    temp_rules[message.chat.id]['name'] = f"{temp_rules[message.chat.id]['first_user_name']} - {temp_rules[message.chat.id]['second_user_name']}"
 
     msg = bot.send_message(
         message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
@@ -216,6 +255,7 @@ def add_rule_direction(message: telebot.types.Message):
             message.chat.id, "Введите число 1, 2 или 3")
         bot.register_next_step_handler(msg, add_rule_direction)
         return
+    temp_rules[message.chat.id]['name'] = f"{temp_rules[message.chat.id]['first_user_name']} - {temp_rules[message.chat.id]['second_user_name']}"
 
     # add type automated or manual
     msg = bot.send_message(
@@ -374,6 +414,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         if enable_rule(rule):
+            rule = get_rule_by_id(rule.id)
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Правило включено", reply_markup=menu.rule_menu(rule))
         else:
@@ -391,6 +432,8 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         if disable_rule(rule):
+            rule = get_rule_by_id(rule.id)
+
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Правило выключено", reply_markup=menu.rule_menu(rule))
         else:
@@ -408,6 +451,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         if enable_filter(filter):
+            filter = get_filter_by_id(filter.id)
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Фильтр включен", reply_markup=menu.filter_menu(filter))
         else:
@@ -425,6 +469,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         if disable_filter(filter):
+            filter = get_filter_by_id(filter.id)
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Фильтр выключен", reply_markup=menu.filter_menu(filter))
         else:

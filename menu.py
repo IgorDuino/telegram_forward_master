@@ -1,5 +1,5 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from data.models import Rule, Filter
+from models import Rule, Filter
 from typing import List
 
 
@@ -32,7 +32,7 @@ def rule_menu(rule: Rule):
         InlineKeyboardButton(text="Удалить правило 🗑", callback_data=f"delete-rule_{rule.id}"))
 
     keyboard.add(InlineKeyboardButton(
-        text="Назад 🔙", callback_data="main-menu"))
+        text="Назад 🔙", callback_data="all-rules"))
     return keyboard
 
 
