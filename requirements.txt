@@ -1,8 +1,7 @@
-pyrogram
 python-decouple
+sqlalchemy
+SQLAlchemy-serializer
+psycopg2-binary
+pyrogram
 tgcrypto
 pytelegrambotapi
-sqlalchemy
-psycopg2-binary
-SQLAlchemy-serializer
-alembic
