@@ -8,12 +8,12 @@ SqlAlchemyBase = dec.declarative_base()
 __factory = None
 
 
-def global_init(user, password, host, db_name):
+def global_init(user, password, host, port, db_name):
     global __factory
     if __factory:
         return
 
-    conn_str = f'postgresql://{user}:{password}@{host}/{db_name}'
+    conn_str = f'postgresql://{user}:{password}@{host}:{port}/{db_name}'
 
     engine = sa.create_engine(conn_str)
     __factory = orm.sessionmaker(bind=engine)

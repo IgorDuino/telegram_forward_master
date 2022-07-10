@@ -1,24 +1,16 @@
-#!/bin/python
+#  run bot and userbot
 
-from threading import Thread
-
-from userbot import main as userbot_main_function
-from bot import main as bot_main_function
+from subprocess import Popen
 
 
-def main():
-    userbot_thread = Thread(target=userbot_main_function)
-    bot_thread = Thread(target=bot_main_function)
+def run_bot():
+    Popen(['python', 'bot.py'])
 
-    userbot_thread.name = "userbot"
-    bot_thread.name = "bot"
 
-    userbot_thread.start()
-    # bot_thread.start()
-
-    userbot_thread.join()
-    # bot_thread.join()
+def run_userbot():
+    Popen(['python', 'userbot.py'])
 
 
 if __name__ == '__main__':
-    main()
+    run_bot()
+    run_userbot()

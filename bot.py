@@ -1,3 +1,5 @@
+#!venv/bin/python
+
 from turtle import forward
 from decouple import config
 from db_session import global_init, create_session
@@ -7,11 +9,6 @@ import menu
 
 
 api_token = config("BOT_API", cast=str)
-db_user = config('DB_USER')
-db_password = config('DB_PASSWORD')
-db_host = config('DB_HOST')
-db_name = config('DB_NAME')
-
 
 bot = telebot.TeleBot(api_token)
 
@@ -501,7 +498,13 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
 
 def main():
-    global_init(db_user, db_password, db_host, db_name)
+    db_name = config('DB_NAME', cast=str)
+    db_user = config('DB_USER', cast=str)
+    db_password = config('DB_PASSWORD', cast=str)
+    db_host = config('DB_HOST', cast=str)
+    db_port = config('DB_PORT', cast=int)
+
+    global_init(db_user, db_password, db_host, db_port, db_name)
     bot.infinity_polling()
 
 
