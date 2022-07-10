@@ -26,6 +26,10 @@ class Filter(SqlAlchemyBase, SerializerMixin):
 
 
 class Rule(SqlAlchemyBase, SerializerMixin):
+    DIRECTION_BOTH = 1
+    DIRECTION_FIRST_TO_SECOND = 2
+    DIRECTION_SECOND_TO_FIRST = 3
+
     __tablename__ = 'rules'
     id = Column(Integer, primary_key=True, autoincrement=True)
     is_enabled = Column(Boolean, default=True)

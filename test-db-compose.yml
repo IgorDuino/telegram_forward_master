@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+  db:
+    image: postgres:14
+    restart: always
+    ports:
+      - "5498:5432"
+    environment:
+      POSTGRES_DB: "forward_master"
+      POSTGRES_USER: "forward_master"
+      POSTGRES_PASSWORD: "aboba"
+      
+
+    # volumes:
+    #   - ./test-data/db:/var/lib/postgresql/data

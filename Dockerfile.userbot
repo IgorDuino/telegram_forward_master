@@ -1,0 +1,12 @@
+FROM python:3.10
+
+LABEL maintainer="me@igorduino.ru"
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt .
+RUN pip install --upgrade pip wheel setuptools && pip install --no-cache-dir -r requirements.txt
+
+COPY *.session db_session.py models.py userbot.py /usr/src/app/
+
+CMD [ "python", "userbot.py" ] 

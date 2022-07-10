@@ -4,18 +4,32 @@ services:
   db:
     image: postgres:14
     restart: always
-    environment:
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: "forward_master"
-      POSTGRES_PASSWORD: "1234"
-      POSTGRES_DB: "forward_master"
+    env_file:
+      - my.env
+    # volumes:
+    #   - ./data/db:/var/lib/postgresql/data
 
   bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.bot
     restart: always
     links:
       - db
+    depends_on:
+      - db
     env_file:
-      - .env
+      - my.env
+
+  userbot:
+    build:
+      context: .
+      dockerfile: Dockerfile.userbot
+    restart: always
+    links:
+      - db
+    depends_on:
+      - db
+
+    env_file:
+      - my.env

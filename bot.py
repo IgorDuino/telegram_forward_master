@@ -140,19 +140,24 @@ def add_filter_replace_word(message: telebot.types.Message):
     temp_filters[message.chat.id]['replace_word'] = message.text
 
     msg = bot.send_message(
-        message.chat.id, "Сохранил, теперь напишите на что его заменять:")
+        message.chat.id, "Сохранил, теперь напишите на что его заменять \n* чтобы просто удалить слово напишите УДАЛИТЬ:")
     bot.register_next_step_handler(msg, add_filter_replace_to_word)
 
 
 def add_filter_replace_to_word(message: telebot.types.Message):
-    temp_filters[message.chat.id]['replace_to_word'] = message.text
+    replace_to_word = message.text
+
+    if replace_to_word == "УДАЛИТЬ":
+        replace_to_word = ""
+
+    temp_filters[message.chat.id]['replace_to_word'] = replace_to_word
 
     chat_id = message.chat.id
     filter_id = add_filter(chat_id)
     if filter_id:
         filter = get_filter_by_id(filter_id)
         msg = bot.send_message(
-            message.chat.id, "Фильтр добавлен:", reply_markup=menu.filter_menu(filter))
+            message.chat.id, "Фильтр добавлен \n*слово будет заменено или удалено внезависимости от его регистра:", reply_markup=menu.filter_menu(filter))
     else:
         msg = bot.send_message(
             message.chat.id, "Что-то пошло не так, попробуйте еще раз", reply_markup=menu.main_menu(get_user(message.chat.id)))
@@ -255,10 +260,24 @@ def add_rule_direction(message: telebot.types.Message):
     temp_rules[message.chat.id]['name'] = f"{temp_rules[message.chat.id]['first_user_name']} - {temp_rules[message.chat.id]['second_user_name']}"
 
     # add type automated or manual
-    msg = bot.send_message(
-        message.chat.id, "Выберите тип пересылки сообщений:\n1. Автоматическая\n2. Ручная\nВведите число 1 или 2")
-    bot.register_next_step_handler(msg, add_rule_type)
+    # msg = bot.send_message(
+    #     message.chat.id, "Выберите тип пересылки сообщений:\n1. Автоматическая\n2. Ручная\nВведите число 1 или 2")
+    # bot.register_next_step_handler(msg, add_rule_type)
 
+    #  REMOVE THIS
+
+    # add rule to base
+    rule = add_rule(message.chat.id)
+    keyboard = menu.main_menu(get_user(message.chat.id).status)
+
+    if rule:
+        msg = bot.send_message(
+            message.chat.id, "Правило успешно добавлено", reply_markup=keyboard)
+    else:
+        msg = bot.send_message(
+            message.chat.id, "Произошла ошибка, попробуйте еще раз", reply_markup=keyboard)
+
+    # MDA TRESH
 
 def add_rule_type(message: telebot.types.Message):
     if message.text in ['1', '2']:
@@ -498,15 +517,16 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
 
 def main():
-    db_name = config('DB_NAME', cast=str)
-    db_user = config('DB_USER', cast=str)
-    db_password = config('DB_PASSWORD', cast=str)
+    db_name = config('POSTGRES_DB', cast=str)
+    db_user = config('POSTGRES_USER', cast=str)
+    db_password = config('POSTGRES_PASSWORD', cast=str)
     db_host = config('DB_HOST', cast=str)
-    db_port = config('DB_PORT', cast=int)
+    db_port = config('POSTGRES_PORT', cast=int)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
     bot.infinity_polling()
 
 
 if __name__ == '__main__':
+    print("Start bot")
     main()

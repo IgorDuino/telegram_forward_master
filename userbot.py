@@ -1,23 +1,24 @@
-#!venv/bin/python
+from decouple import config
+from typing import List, Tuple
+import logging
+import re
+import os
 
 from pyrogram import Client, filters
-from pyrogram import types
-from decouple import config
+import pyrogram.types
+from setuptools import PEP420PackageFinder
 
-from decouple import config
-import pyrogram
 from db_session import global_init, create_session
-from models import Rule, Filter, User
-
-from typing import List, Tuple, Union
+from models import Rule, Filter
 
 
-def get_all_rules():
-    session = create_session()
+logging.basicConfig(level=logging.WARNING,
+                    format='%(asctime)s [%(levelname)s] %(name)s :%(message)s')
+logger = logging.getLogger(__name__)
 
-    rules = session.query(Rule).all()
 
-    return rules
+def case_insensitive_replace(text: str, replace_word: str, to_replace_word: str) -> str:
+    return re.compile(re.escape(replace_word), re.IGNORECASE).sub(to_replace_word, text)
 
 
 async def forward_message(app, message: pyrogram.types.Message, target_chat: str, filters: List[Filter]) -> bool:
@@ -27,10 +28,13 @@ async def forward_message(app, message: pyrogram.types.Message, target_chat: str
 
         if type(message.text) == str:
             if filter.replace_word in message.text:
-                message.text = message.text.replace(
-                    filter.replace_word, filter.to_replace_word)
+                message.text = case_insensitive_replace(
+                    message.text, filter.replace_word, filter.to_replace_word)
 
-    print("Forwarding message to", target_chat)
+        if type(message.caption) == str:
+            if filter.replace_word in message.caption:
+                message.caption = case_insensitive_replace(
+                    message.caption, filter.replace_word, filter.to_replace_word)
 
     await message.copy(
         int(target_chat),
@@ -65,15 +69,21 @@ def main():
     api_id = config('API_ID', cast=int)
     api_hash = config('API_HASH', cast=str)
     phone_number = config('PHONE_NUMBER', cast=str)
+    account_name = config('ACCOUNT_NAME', cast=str)
 
-    app = Client("account", phone_number=phone_number,
+    # check if the sessinon file exists
+    if not os.path.exists(f"{account_name}.session"):
+        logger.critical(f"{account_name}.session not found")
+        # TODO: maybe send a message to the admin from the bot
+        return
+
+    app = Client(account_name, phone_number=phone_number,
                  api_hash=api_hash, api_id=api_id)
 
     @app.on_message(filters.private)
-    async def main_handler(client, message: types.messages_and_media.Message):
-        print("New message:", message.text)
-
+    async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
         from_id = str(message.from_user.id)
+        # TODO: add sending by account name
         from_user_contact = "message.contact.first_name"
 
         target_chat = None
@@ -85,9 +95,13 @@ def main():
             if not rule.is_enabled:
                 continue
 
+            if rule.direction == Rule.DIRECTION_SECOND_TO_FIRST:
+                continue
+
             target_chat = rule.second_user_tg_id
 
             if not rule.is_automated:
+                # TODO: implement manual forwarding
                 continue
 
             await forward_message(app, message, target_chat, rule.filters)
@@ -96,23 +110,29 @@ def main():
             if not rule.is_enabled:
                 continue
 
+            if rule.direction == Rule.DIRECTION_FIRST_TO_SECOND:
+                continue
+
             target_chat = rule.first_user_tg_id
 
             if not rule.is_automated:
+                # TODO: implement manual forwarding
                 continue
 
-            forward_message(app, message, target_chat, rule.filters)
+            await forward_message(app, message, target_chat, rule.filters)
 
     app.run()
 
 
 if __name__ == '__main__':
-    db_name = config('DB_NAME', cast=str)
-    db_user = config('DB_USER', cast=str)
-    db_password = config('DB_PASSWORD', cast=str)
+    db_name = config('POSTGRES_DB', cast=str)
+    db_user = config('POSTGRES_USER', cast=str)
+    db_password = config('POSTGRES_PASSWORD', cast=str)
     db_host = config('DB_HOST', cast=str)
-    db_port = config('DB_PORT', cast=int)
+    db_port = config('POSTGRES_PORT', cast=int)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
-    print(get_all_rules())
+    logger.info("DB initialized")
     main()
+    logger.info("Main loop finished")
+    logger.info("Exiting")
