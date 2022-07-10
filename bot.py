@@ -24,7 +24,8 @@ def add_rule(chat_id):
         first_user_tg_id=temp_rule['first_user_id'],
         second_user_tg_id=temp_rule['second_user_id'],
         direction=temp_rule['direction'],
-        is_automated=temp_rule['is_automated']
+        # is_automated=temp_rule['is_automated']
+        is_automated=True
     )
     sessioin.add(rule)
     sessioin.commit()
@@ -278,6 +279,7 @@ def add_rule_direction(message: telebot.types.Message):
             message.chat.id, "Произошла ошибка, попробуйте еще раз", reply_markup=keyboard)
 
     # MDA TRESH
+
 
 def add_rule_type(message: telebot.types.Message):
     if message.text in ['1', '2']:

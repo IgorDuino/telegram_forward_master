@@ -26,15 +26,17 @@ async def forward_message(app, message: pyrogram.types.Message, target_chat: str
         if not filter.is_enabled:
             continue
 
-        if type(message.text) == str:
-            if filter.replace_word in message.text:
-                message.text = case_insensitive_replace(
-                    message.text, filter.replace_word, filter.to_replace_word)
+        try:
+            message.text = case_insensitive_replace(
+                message.text, filter.replace_word, filter.to_replace_word)
+        except:
+            pass
 
-        if type(message.caption) == str:
-            if filter.replace_word in message.caption:
-                message.caption = case_insensitive_replace(
-                    message.caption, filter.replace_word, filter.to_replace_word)
+        try:
+            message.caption = case_insensitive_replace(
+                message.caption, filter.replace_word, filter.to_replace_word)
+        except:
+            pass
 
     await message.copy(
         int(target_chat),
