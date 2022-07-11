@@ -406,8 +406,12 @@ def callback_inline(call: telebot.types.CallbackQuery):
         rule = get_rule_by_id(filter.rule_id)
 
         if delete_filter_by_id(filter.id):
+            session = create_session()
+            filters = session.query(Filter).filter(
+                Filter.rule_id == rule.id).all()
+            session.close()
             bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Фильтр удален", reply_markup=menu.filters_menu(rule))
+                                  message_id=call.message.message_id, text="Фильтр удален", reply_markup=menu.filters_menu(rule, filters))
         else:
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
