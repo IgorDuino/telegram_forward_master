@@ -36,9 +36,9 @@ def rule_menu(rule: Rule):
     return keyboard
 
 
-def filters_menu(rule: Rule):
+def filters_menu(rule: Rule, filters: List[Filter]):
     keyboard = InlineKeyboardMarkup()
-    for i, filter in enumerate(rule.filters):
+    for i, filter in enumerate(filters):
         title = f"{filter.replace_word} -> {filter.to_replace_word}"
         status = "🟢" if filter.is_enabled else "🔴"
 

@@ -329,6 +329,9 @@ def callback_inline(call: telebot.types.CallbackQuery):
     elif call.data.startswith('filters_'):
         rule_id = call.data.split('_')[1]
         rule = get_rule_by_id(rule_id)
+        session = create_session()
+        filters = session.query(Filter).filter(Filter.rule_id == rule_id).all()
+        session.close()
         if not rule:
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
@@ -337,7 +340,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                 reply_markup=menu.main_menu(
                     get_user(call.message.chat.id).status))
         else:
-            keyboard = menu.filters_menu(rule)
+            keyboard = menu.filters_menu(rule, filters)
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Фильтры", reply_markup=keyboard)
 
