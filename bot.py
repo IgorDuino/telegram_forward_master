@@ -141,7 +141,7 @@ def add_filter_replace_word(message: telebot.types.Message):
     temp_filters[message.chat.id]['replace_word'] = message.text
 
     msg = bot.send_message(
-        message.chat.id, "Сохранил, теперь напишите на что его заменять \n* чтобы просто удалить слово напишите УДАЛИТЬ:")
+        message.chat.id, "Сохранил, теперь напишите на что его заменять \n* чтобы просто удалить слово напишите УДАЛИТЬ\n*чтобы отменять пересылку сообщения при содержании предыдущего слова в нём напишите ОТМЕНИТЬ\n*чтобы отключить правило до его ручного включения при содержании слова в сообщении напишите ОТКЛЮЧИТЬ")
     bot.register_next_step_handler(msg, add_filter_replace_to_word)
 
 
@@ -258,39 +258,10 @@ def add_rule_direction(message: telebot.types.Message):
             message.chat.id, "Введите число 1, 2 или 3")
         bot.register_next_step_handler(msg, add_rule_direction)
         return
-    temp_rules[message.chat.id]['name'] = f"{temp_rules[message.chat.id]['first_user_name']} - {temp_rules[message.chat.id]['second_user_name']}"
+    direction_emodji = ['🔄', '➡', '⬅']
+    temp_rules[message.chat.id][
+        'name'] = f"{temp_rules[message.chat.id]['first_user_name']} {direction_emodji[int(temp_rules[message.chat.id]['direction']) - 1]} {temp_rules[message.chat.id]['second_user_name']}"
 
-    # add type automated or manual
-    # msg = bot.send_message(
-    #     message.chat.id, "Выберите тип пересылки сообщений:\n1. Автоматическая\n2. Ручная\nВведите число 1 или 2")
-    # bot.register_next_step_handler(msg, add_rule_type)
-
-    #  REMOVE THIS
-
-    # add rule to base
-    rule = add_rule(message.chat.id)
-    keyboard = menu.main_menu(get_user(message.chat.id).status)
-
-    if rule:
-        msg = bot.send_message(
-            message.chat.id, "Правило успешно добавлено", reply_markup=keyboard)
-    else:
-        msg = bot.send_message(
-            message.chat.id, "Произошла ошибка, попробуйте еще раз", reply_markup=keyboard)
-
-    # MDA TRESH
-
-
-def add_rule_type(message: telebot.types.Message):
-    if message.text in ['1', '2']:
-        temp_rules[message.chat.id]['is_automated'] = message.text == '1'
-    else:
-        msg = bot.send_message(
-            message.chat.id, "Введите число 1 или 2")
-        bot.register_next_step_handler(msg, add_rule_type)
-        return
-
-    # add rule to base
     rule = add_rule(message.chat.id)
     keyboard = menu.main_menu(get_user(message.chat.id).status)
 
@@ -304,6 +275,11 @@ def add_rule_type(message: telebot.types.Message):
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_forwarded_message(message: telebot.types.Message):
+    if str(message.chat.id) != config('TELEGRAM_ID', cast=str):
+        bot.send_message(message.chat.id,
+                         "У вас нет прав для данного действия")
+        return
+
     user = get_user(message.chat.id)
     if not user:
         user = User(tg_id=message.chat.id)
