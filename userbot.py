@@ -5,6 +5,7 @@ import re
 import os
 
 import pyrogram
+
 from pyrogram import Client, filters
 import pyrogram.types
 
@@ -42,6 +43,7 @@ def case_insensitive_replace(text: str, replace_word: str, to_replace_word: str)
 
 
 async def forward_message(app: Client, message: pyrogram.types.Message, target_chat: str, rule: Rule) -> bool:
+    print(f"Forwarding message {message.text} to {target_chat}")
     session = create_session()
     filters = session.query(Filter).filter(Filter.rule_id == rule.id).all()
 
@@ -82,44 +84,51 @@ def is_almsost_digit(text: str) -> bool:
     return len(set(text) | set(alphabet)) == len(alphabet)
 
 
-def get_rules_by_first_user(user_tg_id: str, user_contact: str) -> Tuple[List[Rule], List[Rule]]:
+async def get_rules_by_first_user(app: Client, user_tg_id: str, user_contact: str) -> Tuple[List[Rule], List[Rule]]:
     session = create_session()
 
     # get rules where our user is first
-    # by user_tg_id
     first_rules = session.query(Rule).filter(
-        Rule.first_user_tg_id == user_tg_id).all()
-    # and by user_contact
-    first_rules += session.query(Rule).filter(
         Rule.first_user_tg_id == user_contact).all()
 
+    for rule in first_rules:
+        await replace_chat_id_in_database(app, rule, user_contact, 1)
+
+    first_rules = session.query(Rule).filter(
+        Rule.first_user_tg_id == user_tg_id).all()
+
     # get rules where our user is second
-    # by user_tg_id
     second_rules = session.query(Rule).filter(
-        Rule.second_user_tg_id == user_tg_id).all()
-    # and by user_contact
-    second_rules += session.query(Rule).filter(
         Rule.second_user_tg_id == user_contact).all()
 
-    return [first_rules, second_rules]
+    for rule in second_rules:
+        await replace_chat_id_in_database(app, rule, user_contact, 2)
+
+    second_rules = session.query(Rule).filter(
+        Rule.second_user_tg_id == user_tg_id).all()
+
+    return first_rules, second_rules
 
 
 async def get_chat_id_by_contact_name(app: Client, contact_name: str) -> str:
     all_chats: List[pyrogram.types.User] = await app.get_contacts()
     for chat in all_chats:
         try:
-            first_name = chat.first_name.lower()
-            last_name = chat.last_name.lower()
+            first_name = chat.first_name
+            last_name = ''
+            if chat.last_name:
+                last_name = chat.last_name
 
-            a = [first_name, last_name, f"{first_name} {last_name}"]
-
-            if contact_name.lower() in a:
+            if contact_name.lower() == f"{first_name} {last_name}".strip().lower():
                 return chat.id
+
         except:
             continue
 
 
 async def replace_chat_id_in_database(app: Client, rule, contact_name: str, number: int):
+    print(f"Contact name: {contact_name}")
+    print(rule, contact_name, number)
     chat_id = await get_chat_id_by_contact_name(app, contact_name)
     if chat_id is None:
         return False
@@ -135,7 +144,7 @@ async def replace_chat_id_in_database(app: Client, rule, contact_name: str, numb
         return False
 
     session.commit()
-    return True
+    return chat_id
 
 
 def main():
@@ -147,7 +156,6 @@ def main():
     # check if the sessinon file exists
     if not os.path.exists(f"{account_name}.session"):
         logger.critical(f"{account_name}.session not found")
-        # TODO: maybe send a message to the admin from the bot
         return
 
     app = Client(account_name, phone_number=phone_number,
@@ -156,13 +164,16 @@ def main():
     @app.on_message(filters.private)
     async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
         from_id = str(message.from_user.id)
-        # TODO: add sending by account name
-        from_user_contact = "message.contact.first_name"
+        if message.from_user.first_name:
+            if message.from_user.last_name:
+                from_user_contact = f"{message.from_user.first_name} {message.from_user.last_name}"
+            else:
+                from_user_contact = message.from_user.first_name
 
         target_chat = None
 
-        first_rules, second_rules = get_rules_by_first_user(
-            from_id, from_user_contact)
+        first_rules, second_rules = await get_rules_by_first_user(
+            app, from_id, from_user_contact)
 
         for rule in first_rules:
             if not rule.is_enabled:
@@ -194,6 +205,8 @@ def main():
 
 
 if __name__ == '__main__':
+    print("Starting userbot")
+
     db_name = config('POSTGRES_DB', cast=str)
     db_user = config('POSTGRES_USER', cast=str)
     db_password = config('POSTGRES_PASSWORD', cast=str)
