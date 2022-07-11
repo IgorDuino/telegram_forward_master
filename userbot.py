@@ -36,6 +36,7 @@ def disable_rule(rule: Rule):
     real_rule: Rule = session.query(Rule).filter(Rule.id == rule.id).first()
     real_rule.is_enabled = False
     session.commit()
+    session.close()
 
 
 def case_insensitive_replace(text: str, replace_word: str, to_replace_word: str) -> str:
@@ -46,6 +47,7 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     print(f"Forwarding message {message.text} to {target_chat}")
     session = create_session()
     filters = session.query(Filter).filter(Filter.rule_id == rule.id).all()
+    session.close()
 
     for filter in filters:
         if not filter.is_enabled:
@@ -107,6 +109,7 @@ async def get_rules_by_first_user(app: Client, user_tg_id: str, user_contact: st
     second_rules = session.query(Rule).filter(
         Rule.second_user_tg_id == user_tg_id).all()
 
+    session.close()
     return first_rules, second_rules
 
 
@@ -144,6 +147,7 @@ async def replace_chat_id_in_database(app: Client, rule, contact_name: str, numb
         return False
 
     session.commit()
+    session.close()
     return chat_id
 
 

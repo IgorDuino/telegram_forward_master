@@ -52,6 +52,7 @@ def enable_rule(rule: Rule):
     real_rule = sessioin.query(Rule).filter(Rule.id == rule.id).first()
     real_rule.is_enabled = True
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -60,6 +61,7 @@ def disable_rule(rule: Rule):
     real_rule = sessioin.query(Rule).filter(Rule.id == rule.id).first()
     real_rule.is_enabled = False
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -68,6 +70,7 @@ def enable_filter(filter: Filter):
     real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
     real_filter.is_enabled = True
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -76,6 +79,7 @@ def disable_filter(filter: Filter):
     real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
     real_filter.is_enabled = False
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -84,6 +88,7 @@ def delete_rule_by_id(rule_id):
     rule = sessioin.query(Rule).filter(Rule.id == rule_id).first()
     sessioin.delete(rule)
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -92,6 +97,7 @@ def delete_filter_by_id(filter_id):
     filter = sessioin.query(Filter).filter(Filter.id == filter_id).first()
     sessioin.delete(filter)
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -100,6 +106,7 @@ def set_user_status(tg_id, status):
     user = sessioin.query(User).filter(User.tg_id == tg_id).first()
     user.status = status
     sessioin.commit()
+    sessioin.close()
     return True
 
 
@@ -110,30 +117,35 @@ def get_forward_from_account(message: telebot.types.Message):
 def get_user(tg_id):
     sessioin = create_session()
     user = sessioin.query(User).filter(User.tg_id == tg_id).first()
+    sessioin.close()
     return user
 
 
 def get_rule_by_id(rule_id):
     sessioin = create_session()
     rule = sessioin.query(Rule).filter(Rule.id == rule_id).first()
+    sessioin.close()
     return rule
 
 
 def get_rules():
     sessioin = create_session()
     rules = sessioin.query(Rule).all()
+    sessioin.close()
     return rules
 
 
 def get_filter_by_id(filter_id):
     sessioin = create_session()
     filter = sessioin.query(Filter).filter(Filter.id == filter_id).first()
+    sessioin.close()
     return filter
 
 
 def get_filters(rule: Rule):
     sessioin = create_session()
     filters = sessioin.query(Filter).filter(Filter.rule_id == rule.id).all()
+    sessioin.close()
     return filters
 
 
