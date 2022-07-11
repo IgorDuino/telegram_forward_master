@@ -53,14 +53,17 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         if not filter.is_enabled:
             continue
 
-        if len(re.compile(re.escape(filter.replace_word), re.IGNORECASE).findall(message.text)) > 0:
-            if filter.to_replace_word == "ОТКЛЮЧИТЬ":
-                disable_rule(rule)
-                send_disable_rule_notification_to_telegram(
-                    rule, filter.replace_word)
-                return False
-            if filter.to_replace_word == "ОТМЕНИТЬ":
-                return False
+        try:
+            if len(re.compile(re.escape(filter.replace_word), re.IGNORECASE).findall(message.text)) > 0:
+                if filter.to_replace_word == "ОТКЛЮЧИТЬ":
+                    disable_rule(rule)
+                    send_disable_rule_notification_to_telegram(
+                        rule, filter.replace_word)
+                    return False
+                if filter.to_replace_word == "ОТМЕНИТЬ":
+                    return False
+        except:
+            pass
 
         try:
             message.text = case_insensitive_replace(
