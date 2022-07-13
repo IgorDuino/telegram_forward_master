@@ -304,6 +304,12 @@ def handle_forwarded_message(message: telebot.types.Message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call: telebot.types.CallbackQuery):
+    if call.data.split('_')[-1] == 'remove-temp-filter':
+        try:
+            del temp_rules[call.message.chat.id]
+        except KeyError:
+            pass
+
     if call.data.startswith('main-menu'):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
