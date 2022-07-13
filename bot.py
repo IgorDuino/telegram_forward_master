@@ -304,14 +304,15 @@ def handle_forwarded_message(message: telebot.types.Message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call: telebot.types.CallbackQuery):
-    if call.data == "main-menu":
+    if call.data.startswith('main-menu'):
         bot.edit_message_text(
             chat_id=call.message.chat.id,
             message_id=call.message.message_id,
             text="Главное меню",
             reply_markup=menu.main_menu(get_user(call.message.chat.id).status)
         )
-    elif call.data == 'all-rules':
+
+    elif call.data.startswith('all-rules'):
         rules = get_rules()
         if len(rules) == 0:
             bot.edit_message_text(
@@ -326,30 +327,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Все правила", reply_markup=keyboard)
 
-    elif call.data.startswith('filters_'):
-        rule_id = call.data.split('_')[1]
-        rule = get_rule_by_id(rule_id)
-        session = create_session()
-        filters = session.query(Filter).filter(Filter.rule_id == rule_id).all()
-        session.close()
-        if not rule:
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text="Правило не найдено",
-                reply_markup=menu.main_menu(
-                    get_user(call.message.chat.id).status))
-        else:
-            keyboard = menu.filters_menu(rule, filters)
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Фильтры", reply_markup=keyboard)
-
-    elif call.data == 'add-rule':
-        msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, text="Чтобы добавить первого пользователя перешлите мне любое его сообщение")
-
-        bot.register_next_step_handler(msg, add_rule_first_user)
-
+    # rule menu
     elif call.data.startswith('rule_'):
         rule_id = int(call.data.split('_')[1])
         rule = get_rule_by_id(rule_id)
@@ -361,61 +339,6 @@ def callback_inline(call: telebot.types.CallbackQuery):
         keyboard = menu.rule_menu(rule)
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id, text=f"Правило [{rule.id + 1}] {rule.name}", reply_markup=keyboard)
-
-    elif call.data.startswith('filter_'):
-        filter_id = int(call.data.split('_')[1])
-        filter = get_filter_by_id(filter_id)
-        if not filter:
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Фильтр не найдено", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
-            return
-        keyboard = menu.filter_menu(filter)
-        title = f"{filter.replace_word} -> {filter.to_replace_word}"
-        bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text=f"Фильтр {title}", reply_markup=keyboard)
-
-    # delete rule
-    elif call.data.startswith('delete-rule_'):
-        rule_id = int(call.data.split('_')[1])
-        rule = get_rule_by_id(rule_id)
-        if not rule:
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Правило не найдено", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
-            return
-        if delete_rule_by_id(rule.id):
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Правило удалено", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
-        else:
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
-
-    # delete filter
-    elif call.data.startswith('delete-filter_'):
-        filter_id = int(call.data.split('_')[1])
-        filter = get_filter_by_id(filter_id)
-        if not filter:
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Фильтр не найдено", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
-            return
-
-        rule = get_rule_by_id(filter.rule_id)
-
-        if delete_filter_by_id(filter.id):
-            session = create_session()
-            filters = session.query(Filter).filter(
-                Filter.rule_id == rule.id).all()
-            session.close()
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Фильтр удален", reply_markup=menu.filters_menu(rule, filters))
-        else:
-            bot.edit_message_text(chat_id=call.message.chat.id,
-                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
-                                      get_user(call.message.chat.id).status))
 
     # enable rule
     elif call.data.startswith('enable-rule_'):
@@ -453,6 +376,61 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
+
+    elif call.data.startswith('add-rule'):
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Чтобы добавить первого пользователя перешлите мне любое его сообщение")
+
+        bot.register_next_step_handler(msg, add_rule_first_user)
+
+    # delete rule
+    elif call.data.startswith('delete-rule_'):
+        rule_id = int(call.data.split('_')[1])
+        rule = get_rule_by_id(rule_id)
+        if not rule:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Правило не найдено", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        if delete_rule_by_id(rule.id):
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Правило удалено", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+
+    elif call.data.startswith('filters_'):
+        rule_id = call.data.split('_')[1]
+        rule = get_rule_by_id(rule_id)
+        session = create_session()
+        filters = session.query(Filter).filter(Filter.rule_id == rule_id).all()
+        session.close()
+        if not rule:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Правило не найдено",
+                reply_markup=menu.main_menu(
+                    get_user(call.message.chat.id).status))
+        else:
+            keyboard = menu.filters_menu(rule, filters)
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Фильтры", reply_markup=keyboard)
+
+    elif call.data.startswith('filter_'):
+        filter_id = int(call.data.split('_')[1])
+        filter = get_filter_by_id(filter_id)
+        if not filter:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Фильтр не найдено", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        keyboard = menu.filter_menu(filter)
+        title = f"{filter.replace_word} -> {filter.to_replace_word}"
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id, text=f"Фильтр {title}", reply_markup=keyboard)
 
     # enable filter
     elif call.data.startswith('enable-filter_'):
@@ -493,19 +471,42 @@ def callback_inline(call: telebot.types.CallbackQuery):
     elif call.data.startswith('add-filter_'):
         rule_id = int(call.data.split('_')[1])
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, text="Какое слово нужно заменять?")
+                                    message_id=call.message.message_id, text="Выберите на что должен срабатывать фильтр", reply_markup=menu.filter_type_menu())
 
         temp_filters[call.message.chat.id] = {'rule_id': rule_id}
 
-        bot.register_next_step_handler(msg, add_filter_replace_word)
+    # delete filter
+    elif call.data.startswith('delete-filter_'):
+        filter_id = int(call.data.split('_')[1])
+        filter = get_filter_by_id(filter_id)
+        if not filter:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Фильтр не найдено", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
 
-    elif call.data == 'start':
+        rule = get_rule_by_id(filter.rule_id)
+
+        if delete_filter_by_id(filter.id):
+            session = create_session()
+            filters = session.query(Filter).filter(
+                Filter.rule_id == rule.id).all()
+            session.close()
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Фильтр удален", reply_markup=menu.filters_menu(rule, filters))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+
+    elif call.data.startswith('edit-bot'):
         set_user_status(call.message.chat.id, True)
         user = get_user(call.message.chat.id)
 
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id, text="Бот запущен", reply_markup=menu.main_menu(user.status))
-    elif call.data == 'stop':
+
+    elif call.data.startswith('disable-bot'):
         set_user_status(call.message.chat.id, False)
         user = get_user(call.message.chat.id)
 

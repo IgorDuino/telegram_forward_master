@@ -36,6 +36,21 @@ def rule_menu(rule: Rule):
     return keyboard
 
 
+def filter_type_menu():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.add(
+        InlineKeyboardButton(text="Слово или фразу", callback_data="add-filter-trigger_phrase"))
+    keyboard.add(
+        InlineKeyboardButton(text="Любой номер телефона", callback_data="add-trigger_phone"))
+    keyboard.add(
+        InlineKeyboardButton(text="Любую почту", callback_data="add-trigger_mail"))
+    keyboard.add(
+        InlineKeyboardButton(text="Любую ссылку", callback_data="add-trigger_link"))
+    keyboard.add(
+        InlineKeyboardButton(text="Отмена 🚫", callback_data="all-rules_remove-temp-filter"))
+    return keyboard
+
+
 def filters_menu(rule: Rule, filters: List[Filter]):
     keyboard = InlineKeyboardMarkup()
     for i, filter in enumerate(filters):
@@ -75,9 +90,9 @@ def main_menu(state):
         InlineKeyboardButton(text="Добавить правило", callback_data="add-rule"))
     if state:
         keyboard.add(
-            InlineKeyboardButton(text="Отключить бота 🔴", callback_data="stop"))
+            InlineKeyboardButton(text="Отключить бота 🔴", callback_data="disable-bot"))
     else:
         keyboard.add(
-            InlineKeyboardButton(text="Включить бота 🟢", callback_data="start"))
+            InlineKeyboardButton(text="Включить бота 🟢", callback_data="enable-bot"))
 
     return keyboard
