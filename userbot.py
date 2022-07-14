@@ -77,9 +77,9 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         reply_message = message.reply_to_message
 
         if reply_message.text:
-            datetime_srt = f'{reply_message.date:%m-%d %H:%M}'
+            datetime_srt = f'{reply_message.date: %d.%m %H:%M}'
 
-            reply_message.text = f"[__In reply__ from {datetime_srt}]\n" + \
+            reply_message.text = f"[__In reply from {datetime_srt}__]\n" + \
                 reply_message.text
             print(reply_message.text)
 
