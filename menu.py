@@ -75,6 +75,8 @@ def add_filter_trigger_menu():
     keyboard.add(
         InlineKeyboardButton(text="Любую ссылку", callback_data="add-filter-trigger_link"))
     keyboard.add(
+        InlineKeyboardButton(text="Номер карты", callback_data="add-filter-trigger_card"))
+    keyboard.add(
         InlineKeyboardButton(text="Отмена 🚫", callback_data="all-rules_remove-temp-filter"))
 
     return keyboard
@@ -104,6 +106,7 @@ def filters_menu(rule_id, filters: List[Filter]):
     for i, filter in enumerate(filters):
         trigger_replace_dict = {
             "telegram": "Telegram ник",
+            "card": "Номер карты",
             "phone": "Телефон",
             "mail": "Эл. почта",
             "link": "Ссылка"
