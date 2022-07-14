@@ -269,7 +269,7 @@ def add_filter_trigger_phrase(message: telebot.types.Message):
         bot.register_next_step_handler(msg, add_filter_trigger_phrase)
         return
 
-    print(temp_filters)
+
     if not temp_filters.get(message.chat.id, False):
         bot.edit_message_text(chat_id=message.chat.id,
                               message_id=message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
@@ -544,7 +544,6 @@ def callback_inline(call: telebot.types.CallbackQuery):
     elif call.data.startswith('add-filter-trigger_'):
         trigger = call.data.split('_')[1]
 
-        print(temp_filters)
         if not temp_filters.get(call.message.chat.id, False):
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
@@ -566,7 +565,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
     # add-filter-action
     elif call.data.startswith('add-filter-action_'):
         action = call.data.split('_')[1]
-        print(temp_filters)
+
         if not temp_filters.get(call.message.chat.id, False):
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
