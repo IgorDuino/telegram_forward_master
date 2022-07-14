@@ -614,7 +614,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
 
-    elif call.data.startswith('edit-bot'):
+    elif call.data.startswith('enable-bot'):
         set_user_status(call.message.chat.id, True)
         user = get_user(call.message.chat.id)
 
