@@ -523,9 +523,10 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
         if rule_id == "general":
             temp_filters[call.message.chat.id] = {
-                'is_general': True, 'rule_id': None}
+                'is_general': True, 'rule_id': None
+            }
         else:
-            temp_filters[call.message.chat.id] = {'rule_id': int(rule_id)}
+            temp_filters[call.message.chat.id] = {'is_general': False, 'rule_id': int(rule_id)}
 
         keyboard = menu.add_filter_trigger_menu()
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
