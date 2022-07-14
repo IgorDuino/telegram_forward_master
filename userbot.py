@@ -6,7 +6,7 @@ import os
 
 import pyrogram
 
-from pyrogram import Client, filters
+from pyrogram import Client, filters, enums
 import pyrogram.types
 
 import telebot
@@ -77,13 +77,13 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         reply_message = message.reply_to_message
 
         if reply_message.text:
-            reply_message.text = "[In reply]\n" + \
+            reply_message.text = "[__In reply__]\n" + \
                 reply_message.text
             print(reply_message.text)
 
         await reply_message.copy(
-            caption="[in reply]",
             chat_id=target_chat,
+            parse_mode=enums.ParseMode.MARKDOWN
         )
 
     for filter in filters:
