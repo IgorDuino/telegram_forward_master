@@ -72,6 +72,20 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     filters += session.query(Filter).filter(Filter.is_general == True).all()
     session.close()
 
+    # if messahe is reply
+    if message.reply_to_message:
+        reply_message = message.reply_to_message
+
+        if reply_message.text:
+            reply_message.text = "[In reply]\n" + \
+                reply_message.text
+            print(reply_message.text)
+
+        await reply_message.copy(
+            caption="[in reply]",
+            chat_id=target_chat,
+        )
+
     for filter in filters:
         if not filter.is_enabled:
             continue
@@ -81,34 +95,34 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
             applying_filter_status, applying_filter_text = apply_filter(
                 filter.replace_word, filter.to_replace_word, message.text)
 
-        if applying_filter_status == 'disable-rule':
-            disable_rule(rule)
-            send_disable_rule_notification_to_telegram(
-                rule, filter.replace_word)
-            return True
+            if applying_filter_status == 'disable-rule':
+                disable_rule(rule)
+                send_disable_rule_notification_to_telegram(
+                    rule, filter.replace_word)
+                return True
 
-        elif applying_filter_status == 'cancel-forward':
-            return True
+            elif applying_filter_status == 'cancel-forward':
+                return True
 
-        elif applying_filter_status == 'replaced':
-            message.text = applying_filter_text
+            elif applying_filter_status == 'replaced':
+                message.text = applying_filter_text
 
         # apply filter to message caption
         if message.caption:
             applying_filter_status, applying_filter_text = apply_filter(
                 filter.replace_word, filter.to_replace_word, message.caption)
 
-        if applying_filter_status == 'disable-rule':
-            disable_rule(rule)
-            send_disable_rule_notification_to_telegram(
-                rule, filter.replace_word)
-            return True
+            if applying_filter_status == 'disable-rule':
+                disable_rule(rule)
+                send_disable_rule_notification_to_telegram(
+                    rule, filter.replace_word)
+                return True
 
-        elif applying_filter_status == 'cancel-forward':
-            return True
+            elif applying_filter_status == 'cancel-forward':
+                return True
 
-        elif applying_filter_status == 'replaced':
-            message.caption = applying_filter_text
+            elif applying_filter_status == 'replaced':
+                message.caption = applying_filter_text
 
     await message.copy(
         int(target_chat),
