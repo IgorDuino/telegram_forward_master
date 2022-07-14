@@ -3,6 +3,7 @@
 
 # session files
 *.session
+*.session-journal
 
 # ---> Python
 # Byte-compiled / optimized / DLL files
