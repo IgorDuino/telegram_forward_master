@@ -42,3 +42,23 @@ class Rule(SqlAlchemyBase, SerializerMixin):
 
     def __repr__(self):
         return f'<Rule> {self.name}'
+
+
+class GeneralFilter(SqlAlchemyBase, SerializerMixin):
+    __tablename__ = 'general_filters'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    is_enabled = Column(Boolean, default=True)
+    replace_word = Column(String)
+    to_replace_word = Column(String)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', back_populates='general_filters')
+
+
+class GeneralFilterException(SqlAlchemyBase, SerializerMixin):
+    __tablename__ = 'general_filter_exceptions'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    is_enabled = Column(Boolean, default=True)
+    replace_word = Column(String)
+    to_replace_word = Column(String)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+    rule = relationship('Rule', back_populates='general_filter_exceptions')

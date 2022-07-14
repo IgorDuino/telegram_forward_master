@@ -1,5 +1,5 @@
 from decouple import config
-from typing import List, Tuple
+from typing import List, Literal, Tuple, Union
 import logging
 import re
 import os
@@ -39,43 +39,76 @@ def disable_rule(rule: Rule):
     session.close()
 
 
-def case_insensitive_replace(text: str, replace_word: str, to_replace_word: str) -> str:
-    return re.compile(re.escape(replace_word), re.IGNORECASE).sub(to_replace_word, text)
+def apply_filter(trigger, action, text: str):
+    status: Literal['not applied', 'cancel-forward',
+                    'disable-rule', 'replaced'] = 'not applied'
+
+    regexes = {
+        "mail": r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
+        "telegram": r"\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*",
+        "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}",
+        "link": r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+    }
+
+    regex = regexes.get(trigger, trigger)
+
+    if list(re.finditer(regex, text, re.IGNORECASE)):
+        if action in ['cancel-forward', 'disable-rule']:
+            status = action
+        else:
+            status = 'replaced'
+            text = re.sub(regex, action, text, flags=re.IGNORECASE)
+
+    return (status, text)
 
 
 async def forward_message(app: Client, message: pyrogram.types.Message, target_chat: str, rule: Rule) -> bool:
     print(f"Forwarding message {message.text} to {target_chat}")
+
+    # get filters for this rule
     session = create_session()
-    filters = session.query(Filter).filter(Filter.rule_id == rule.id).all()
+    filters: List[Filter] = session.query(
+        Filter).filter(Filter.rule_id == rule.id).all()
+    filters += session.query(Filter).filter(Filter.rule_id == -1).all()
     session.close()
 
     for filter in filters:
         if not filter.is_enabled:
             continue
 
-        try:
-            if len(re.compile(re.escape(filter.replace_word), re.IGNORECASE).findall(message.text)) > 0:
-                if filter.to_replace_word == "ОТКЛЮЧИТЬ":
-                    disable_rule(rule)
-                    send_disable_rule_notification_to_telegram(
-                        rule, filter.replace_word)
-                    return False
-                if filter.to_replace_word == "ОТМЕНИТЬ":
-                    return False
-        except:
-            pass
+        # apply filter to message text
+        if message.text:
+            applying_filter_status, applying_filter_text = apply_filter(
+                filter.replace_word, filter.to_replace_word, message.text)
 
-        try:
-            message.text = case_insensitive_replace(
-                message.text, filter.replace_word, filter.to_replace_word)
-        except:
-            pass
+        if applying_filter_status == 'disable-rule':
+            disable_rule(rule)
+            send_disable_rule_notification_to_telegram(
+                rule, filter.replace_word)
+            return True
 
-        try:
-            message.caption = case_insensitive_replace(
-                message.caption, filter.replace_word, filter.to_replace_word)
-        except:
-            pass
+        elif applying_filter_status == 'cancel-forward':
+            return True
+
+        elif applying_filter_status == 'replaced':
+            message.text = applying_filter_text
+
+        # apply filter to message caption
+        if message.caption:
+            applying_filter_status, applying_filter_text = apply_filter(
+                filter.replace_word, filter.to_replace_word, message.caption)
+
+        if applying_filter_status == 'disable-rule':
+            disable_rule(rule)
+            send_disable_rule_notification_to_telegram(
+                rule, filter.replace_word)
+            return True
+
+        elif applying_filter_status == 'cancel-forward':
+            return True
+
+        elif applying_filter_status == 'replaced':
+            message.caption = applying_filter_text
 
     await message.copy(
         int(target_chat),
@@ -133,8 +166,6 @@ async def get_chat_id_by_contact_name(app: Client, contact_name: str) -> str:
 
 
 async def replace_chat_id_in_database(app: Client, rule, contact_name: str, number: int):
-    print(f"Contact name: {contact_name}")
-    print(rule, contact_name, number)
     chat_id = await get_chat_id_by_contact_name(app, contact_name)
     if chat_id is None:
         return False
