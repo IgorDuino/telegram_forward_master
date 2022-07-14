@@ -1,5 +1,5 @@
 from decouple import config
-from typing import List, Literal, Tuple, Union
+from typing import List, Literal, Tuple
 import logging
 import re
 import os
@@ -13,7 +13,7 @@ import telebot
 from menu import rule_menu
 
 from db_session import global_init, create_session
-from models import Rule, Filter
+from models import Rule, Filter, User
 
 
 logging.basicConfig(level=logging.WARNING,
@@ -26,7 +26,6 @@ bot = telebot.TeleBot(api_token)
 
 
 def send_disable_rule_notification_to_telegram(rule, reason):
-    telegram_id = config('TELEGRAM_ID', cast=str)
     bot.send_message(telegram_id,
                      f"Правило [{rule.id}] {rule.name} отключено из-за фильтра на слово {reason}", reply_markup=rule_menu(rule))
 
@@ -202,6 +201,17 @@ def main():
 
     @app.on_message(filters.private)
     async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
+        session = create_session()
+        user = session.query(User).filter(User.tg_id == telegram_id).all()
+        session.close()
+
+        if len(user) > 0:
+            user: User = user[0]
+            if not user.status:
+                return False
+        else:
+            return False
+
         from_id = str(message.from_user.id)
         if message.from_user.first_name:
             if message.from_user.last_name:
@@ -251,6 +261,7 @@ if __name__ == '__main__':
     db_password = config('POSTGRES_PASSWORD', cast=str)
     db_host = config('DB_HOST', cast=str)
     db_port = config('POSTGRES_PORT', cast=int)
+    telegram_id = config('TELEGRAM_ID', cast=str)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
     logger.info("DB initialized")
