@@ -69,7 +69,7 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     session = create_session()
     filters: List[Filter] = session.query(
         Filter).filter(Filter.rule_id == rule.id).all()
-    filters += session.query(Filter).filter(Filter.rule_id == -1).all()
+    filters += session.query(Filter).filter(Filter.is_general == True).all()
     session.close()
 
     for filter in filters:
