@@ -297,9 +297,15 @@ def add_filter_action_phrase(message: telebot.types.Message):
         return
 
     temp_filters[message.chat.id]['action'] = message.text
-    add_filter(message.chat.id)
 
+    if add_filter(message.chat.id):
+        bot.send_message(chat_id=message.chat.id,
+                            text="Фильтр успешно добавлен", reply_markup=menu.main_menu(get_user(message.chat.id).status))
+    else:
+        bot.send_message(chat_id=message.chat.id,
+                            text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(message.chat.id).status))
 
+# TODO: номер карты
 @bot.message_handler(commands=['start', 'help'])
 def handle_forwarded_message(message: telebot.types.Message):
     if str(message.chat.id) != config('TELEGRAM_ID', cast=str):
@@ -575,7 +581,13 @@ def callback_inline(call: telebot.types.CallbackQuery):
             else:
                 temp_filters[call.message.chat.id]['action'] = action
 
-            add_filter(call.message.chat.id)
+            if add_filter(call.message.chat.id):
+                bot.send_message(chat_id=call.message.chat.id,
+                                text="Фильтр успешно добавлен", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+            else:
+                bot.send_message(chat_id=call.message.chat.id,
+                                 text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+
 
     # delete filter
     elif call.data.startswith('delete-filter_'):
