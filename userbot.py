@@ -77,8 +77,9 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         reply_message = message.reply_to_message
 
         if reply_message.text:
-            date = reply_message.timestamp
-            reply_message.text = "[__In reply__]\n" + \
+            datetime_srt = f'{reply_message.date:%m-%d %H:%M}'
+
+            reply_message.text = f"[__In reply__ from {datetime_srt}]\n" + \
                 reply_message.text
             print(reply_message.text)
 
@@ -214,7 +215,7 @@ def main():
     app = Client(account_name, phone_number=phone_number,
                  api_hash=api_hash, api_id=api_id)
 
-    @app.on_message(filters.private)
+    @ app.on_message(filters.private)
     async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
         session = create_session()
         user = session.query(User).filter(User.tg_id == telegram_id).all()
