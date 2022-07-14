@@ -7,7 +7,7 @@ def main_menu(state):
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
-        InlineKeyboardButton(text="Все равила", callback_data="all-rules"))
+        InlineKeyboardButton(text="Все правила", callback_data="all-rules"))
     keyboard.add(
         InlineKeyboardButton(text="Добавить правило", callback_data="add-rule"))
 
