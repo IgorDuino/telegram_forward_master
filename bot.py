@@ -451,7 +451,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
         if rule_id == "general":
             text = "Общие фильтры"
 
-        keyboard = menu.filters_menu(rule_id, filters)
+        keyboard = menu.filters_menu(-1, filters)
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id, text=text, reply_markup=keyboard)
 

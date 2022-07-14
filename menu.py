@@ -132,9 +132,12 @@ def filters_menu(rule_id, filters: List[Filter]):
     keyboard.add(InlineKeyboardButton(
         text="Добавить фильтр", callback_data=f"add-filter_{rule_id}"))
 
-    
-    keyboard.add(InlineKeyboardButton(
-        text="Назад 🔙", callback_data=f"rule_{rule_id}"))
+    if rule_id == -1:
+        keyboard.add(InlineKeyboardButton(
+            text="Назад 🔙", callback_data="main-menu"))
+    else:
+        keyboard.add(InlineKeyboardButton(
+            text="Назад 🔙", callback_data=f"rule_{rule_id}"))
 
     return keyboard
 
