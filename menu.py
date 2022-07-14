@@ -12,9 +12,9 @@ def main_menu(state):
         InlineKeyboardButton(text="Добавить правило", callback_data="add-rule"))
 
     keyboard.add(
-        InlineKeyboardButton(text="Общие фильтры", callback_data="filters_-1"))
+        InlineKeyboardButton(text="Общие фильтры", callback_data="filters_general"))
     keyboard.add(
-        InlineKeyboardButton(text="Добавить общий фильтр", callback_data="add-filter_-1"))
+        InlineKeyboardButton(text="Добавить общий фильтр", callback_data="add-filter_general"))
 
     if state:
         keyboard.add(
@@ -128,6 +128,8 @@ def filters_menu(rule_id, filters: List[Filter]):
 
     keyboard.add(InlineKeyboardButton(
         text="Добавить фильтр", callback_data=f"add-filter_{rule_id}"))
+
+    
     keyboard.add(InlineKeyboardButton(
         text="Назад 🔙", callback_data=f"rule_{rule_id}"))
 
@@ -146,7 +148,7 @@ def filter_menu(filter: Filter):
     keyboard.add(
         InlineKeyboardButton(text="Удалить фильтр 🗑", callback_data=f"delete-filter_{filter.id}"))
 
-    if filter.rule_id == -1:
+    if filter.is_general:
         keyboard.add(
             InlineKeyboardButton(text="Назад 🔙", callback_data="all-rules"))
     else:

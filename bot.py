@@ -36,6 +36,7 @@ def add_filter(chat_id):
     temp_filter = temp_filters[chat_id]
     sessioin = create_session()
     filter = Filter(
+        is_general=temp_filter['is_general'],
         rule_id=temp_filter['rule_id'],
         replace_word=temp_filter['trigger'],
         to_replace_word=temp_filter['action']
@@ -43,9 +44,10 @@ def add_filter(chat_id):
     sessioin.add(filter)
     sessioin.commit()
     del temp_filters[chat_id]
+    fid = filter.id
     sessioin.close()
 
-    return filter.id
+    return fid
 
 
 def enable_rule(rule: Rule):
@@ -376,6 +378,8 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
 
+    # груповые чаты
+
     # disable rule
     elif call.data.startswith('disable-rule_'):
         rule_id = int(call.data.split('_')[1])
@@ -421,13 +425,26 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
     elif call.data.startswith('filters_'):
         rule_id = call.data.split('_')[1]
+
         session = create_session()
-        filters = session.query(Filter).filter(Filter.rule_id == rule_id).all()
+
+        if rule_id == "general":
+            filters = session.query(Filter).filter(
+                Filter.is_general == True).all()
+
+        else:
+            filters = session.query(Filter).filter(
+                Filter.rule_id == rule_id).all()
+
         session.close()
 
-        keyboard = menu.filters_menu(rule.id, filters)
+        text = "Фильтры правила"
+        if rule_id == "general":
+            text = "Общие фильтры"
+
+        keyboard = menu.filters_menu(rule_id, filters)
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text="Фильтры", reply_markup=keyboard)
+                              message_id=call.message.message_id, text=text, reply_markup=keyboard)
 
     elif call.data.startswith('filter_'):
         filter_id = int(call.data.split('_')[1])
@@ -437,6 +454,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Фильтр не найден", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
             return
+
         keyboard = menu.filter_menu(filter)
 
         trigger_replace_dict = {
@@ -500,12 +518,17 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
     # add filter
     elif call.data.startswith('add-filter_'):
-        rule_id = int(call.data.split('_')[1])
+        rule_id = call.data.split('_')[1]
+
+        if rule_id == "general":
+            temp_filters[call.message.chat.id] = {
+                'is_general': True, 'rule_id': None}
+        else:
+            temp_filters[call.message.chat.id] = {'rule_id': int(rule_id)}
+
         keyboard = menu.add_filter_trigger_menu()
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
                                     message_id=call.message.message_id, text="Выберите на что должен срабатывать фильтр", reply_markup=keyboard)
-
-        temp_filters[call.message.chat.id] = {'rule_id': rule_id}
 
     elif call.data.startswith('add-filter-trigger_'):
         trigger = call.data.split('_')[1]
