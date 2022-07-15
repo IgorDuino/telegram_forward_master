@@ -1,6 +1,6 @@
 #!venv/bin/python
 
-from turtle import forward
+from turtle import forward, title
 from decouple import config
 from db_session import global_init, create_session
 from models import Rule, Filter, User
@@ -34,8 +34,35 @@ def add_rule(chat_id):
 
 def add_filter(chat_id):
     temp_filter = temp_filters[chat_id]
+
+    trigger_replace_dict = {
+        "\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*": "Telegram ник",
+        "((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}": "Телефон",
+        "([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)": "Эл. почта",
+        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+": "Ссылка",
+        "(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)": "Номер карты"
+    }
+
+    trigger = trigger_replace_dict.get(
+        temp_filter['trigger'], temp_filter['trigger'])
+
+    action_replace_dict = {
+        "": "Удалить триггер",
+        "disable-rule": "Отключение правила",
+        "cancel-forward": "Отмена пересылки"}
+
+    action = action_replace_dict.get(
+        temp_filter['action'], temp_filter['action'])
+
+    title = f"{trigger} → {action}"
+
+    if temp_filter['is_fullword']:
+        title += " *"
+
     sessioin = create_session()
     filter = Filter(
+        name=title,
+        is_fullword=temp_filter['is_fullword'],
         is_general=temp_filter['is_general'],
         rule_id=temp_filter['rule_id'],
         replace_word=temp_filter['trigger'],
@@ -269,7 +296,6 @@ def add_filter_trigger_phrase(message: telebot.types.Message):
         bot.register_next_step_handler(msg, add_filter_trigger_phrase)
         return
 
-
     if not temp_filters.get(message.chat.id, False):
         bot.edit_message_text(chat_id=message.chat.id,
                               message_id=message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
@@ -305,12 +331,10 @@ def add_filter_action_phrase(message: telebot.types.Message):
         bot.send_message(chat_id=message.chat.id,
                          text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(message.chat.id).status))
 
-# TODO: номер карты
-
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_forwarded_message(message: telebot.types.Message):
-    if str(message.chat.id) != config('TELEGRAM_ID', cast=str):
+    if str(message.chat.id) not in [config('TELEGRAM_ID', cast=str), config('ADMIN_TELEGRAM_ID', cast=str)]:
         bot.send_message(message.chat.id,
                          "У вас нет прав для данного действия")
         return
@@ -327,6 +351,9 @@ def handle_forwarded_message(message: telebot.types.Message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call: telebot.types.CallbackQuery):
+    if len(call.data.split('@')) > 1:
+        call.data = call.data.split('@')[0]
+
     if call.data.split('_')[-1] == 'remove-temp-filter':
         try:
             del temp_rules[call.message.chat.id]
@@ -447,11 +474,10 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
         session.close()
 
-        text = "Фильтры правила"
-        if rule_id == "general":
-            text = "Общие фильтры"
+        text = "Общие фильтры:" if rule_id == "general" else "Фильтры правила: "
 
-        keyboard = menu.filters_menu(-1, filters)
+        keyboard = menu.filters_menu(-1 if rule_id ==
+                                     'general' else rule_id, filters)
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id, text=text, reply_markup=keyboard)
 
@@ -466,28 +492,8 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
         keyboard = menu.filter_menu(filter)
 
-        trigger_replace_dict = {
-            "telegram": "Telegram ник",
-            "phone": "Телефон",
-            "mail": "Эл. почта",
-            "link": "Ссылка"
-        }
-
-        trigger = trigger_replace_dict.get(
-            filter.replace_word, filter.replace_word)
-
-        action_replace_dict = {
-            "": "Удалить триггер",
-            "disable-rule": "Отключение правила",
-            "cancel-forward": "Отмена пересылки"}
-
-        action = action_replace_dict.get(
-            filter.to_replace_word, filter.to_replace_word)
-
-        title = f"{trigger} → {action}"
-
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text=f"Фильтр {title}", reply_markup=keyboard)
+                              message_id=call.message.message_id, text=f"Фильтр {filter.name}", reply_markup=keyboard)
 
     # enable filter
     elif call.data.startswith('enable-filter_'):
@@ -550,13 +556,30 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
 
-        if trigger == 'phrase':
+        temp_filters[call.message.chat.id]['is_fullword'] = False
+
+        if trigger in ['phrase', 'part']:
+            text = "Введите слово или фразу: "
+
+            if trigger == 'part':
+                temp_filters[call.message.chat.id]['is_fullword'] = True
+                text = "Введите часть слова: "
+
             msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                        message_id=call.message.message_id, text="Введите слово триггер: ")
+                                        message_id=call.message.message_id, text=text)
             bot.register_next_step_handler(msg, add_filter_trigger_phrase)
 
         else:
-            temp_filters[call.message.chat.id]['trigger'] = trigger
+            regexes = {
+                "mail": r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
+                "telegram": r"\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*",
+                "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}",
+                "link": r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
+                "card": r"(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)"
+            }
+
+            temp_filters[call.message.chat.id]['trigger'] = regexes.get(
+                trigger, trigger)
 
             keyboard = menu.add_filter_action_menu()
             bot.edit_message_text(chat_id=call.message.chat.id,
@@ -578,17 +601,16 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.register_next_step_handler(msg, add_filter_action_phrase)
 
         else:
-            if action == 'delete':
-                temp_filters[call.message.chat.id]['action'] = ''
-            else:
-                temp_filters[call.message.chat.id]['action'] = action
+            temp_filters[call.message.chat.id]['action'] = '' if action == 'delete' else action
 
             if add_filter(call.message.chat.id):
-                bot.send_message(chat_id=call.message.chat.id,
-                                 text="Фильтр успешно добавлен", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+                bot.edit_message_text(chat_id=call.message.chat.id,
+                                      message_id=call.message.message_id, text="Фильтр добавлен", reply_markup=menu.main_menu(
+                                          get_user(call.message.chat.id).status))
             else:
-                bot.send_message(chat_id=call.message.chat.id,
-                                 text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+                bot.edit_message_text(chat_id=call.message.chat.id,
+                                      message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                          get_user(call.message.chat.id).status))
 
     # delete filter
     elif call.data.startswith('delete-filter_'):
