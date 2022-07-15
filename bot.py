@@ -269,7 +269,6 @@ def add_filter_trigger_phrase(message: telebot.types.Message):
         bot.register_next_step_handler(msg, add_filter_trigger_phrase)
         return
 
-
     if not temp_filters.get(message.chat.id, False):
         bot.edit_message_text(chat_id=message.chat.id,
                               message_id=message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
@@ -305,12 +304,10 @@ def add_filter_action_phrase(message: telebot.types.Message):
         bot.send_message(chat_id=message.chat.id,
                          text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(message.chat.id).status))
 
-# TODO: номер карты
-
 
 @bot.message_handler(commands=['start', 'help'])
 def handle_forwarded_message(message: telebot.types.Message):
-    if str(message.chat.id) != config('TELEGRAM_ID', cast=str):
+    if str(message.chat.id) not in [config('TELEGRAM_ID', cast=str), config('ADMIN_TELEGRAM_ID', cast=str)]:
         bot.send_message(message.chat.id,
                          "У вас нет прав для данного действия")
         return
@@ -327,6 +324,9 @@ def handle_forwarded_message(message: telebot.types.Message):
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call: telebot.types.CallbackQuery):
+    if len(call.data.split('@')) > 1:
+        call.data = call.data.split('@')[0]
+
     if call.data.split('_')[-1] == 'remove-temp-filter':
         try:
             del temp_rules[call.message.chat.id]
@@ -447,11 +447,9 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
         session.close()
 
-        text = "Фильтры правила"
-        if rule_id == "general":
-            text = "Общие фильтры"
+        text =  "Общие фильтры:" if rule_id == "general" else "Фильтры правила: "
 
-        keyboard = menu.filters_menu(-1, filters)
+        keyboard = menu.filters_menu(-1 if rule_id == 'general' else rule_id, filters)
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id, text=text, reply_markup=keyboard)
 
@@ -578,17 +576,16 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.register_next_step_handler(msg, add_filter_action_phrase)
 
         else:
-            if action == 'delete':
-                temp_filters[call.message.chat.id]['action'] = ''
-            else:
-                temp_filters[call.message.chat.id]['action'] = action
+            temp_filters[call.message.chat.id]['action'] = '' if action == 'delete' else action
 
             if add_filter(call.message.chat.id):
-                bot.send_message(chat_id=call.message.chat.id,
-                                 text="Фильтр успешно добавлен", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+                bot.edit_message_text(chat_id=call.message.chat.id,
+                                      message_id=call.message.message_id, text="Фильтр добавлен", reply_markup=menu.main_menu(
+                                          get_user(call.message.chat.id).status))
             else:
-                bot.send_message(chat_id=call.message.chat.id,
-                                 text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(get_user(call.message.chat.id).status))
+                bot.edit_message_text(chat_id=call.message.chat.id,
+                                      message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                          get_user(call.message.chat.id).status))
 
     # delete filter
     elif call.data.startswith('delete-filter_'):

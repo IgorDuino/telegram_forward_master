@@ -1,5 +1,4 @@
-from faulthandler import is_enabled
-from sqlalchemy import Integer, Column, String, Boolean, ForeignKey, DateTime, func
+from sqlalchemy import Integer, Column, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from db_session import SqlAlchemyBase
 from sqlalchemy_serializer import SerializerMixin
@@ -7,6 +6,7 @@ from sqlalchemy_serializer import SerializerMixin
 
 class User(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'users'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     tg_id = Column(Integer, unique=True)
     status = Column(Boolean, default=True)
@@ -17,6 +17,7 @@ class User(SqlAlchemyBase, SerializerMixin):
 
 class Filter(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'filters'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     is_general = Column(Boolean, default=False)
     is_enabled = Column(Boolean, default=True)
@@ -27,11 +28,12 @@ class Filter(SqlAlchemyBase, SerializerMixin):
 
 
 class Rule(SqlAlchemyBase, SerializerMixin):
+    __tablename__ = 'rules'
+
     DIRECTION_BOTH = 1
     DIRECTION_FIRST_TO_SECOND = 2
     DIRECTION_SECOND_TO_FIRST = 3
 
-    __tablename__ = 'rules'
     id = Column(Integer, primary_key=True, autoincrement=True)
     is_enabled = Column(Boolean, default=True)
     name = Column(String)
@@ -44,3 +46,14 @@ class Rule(SqlAlchemyBase, SerializerMixin):
     def __repr__(self):
         return f'<Rule> {self.name}'
 
+
+class Forward(SqlAlchemyBase, SerializerMixin):
+    __tablename__ = 'forwards'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    original_message_id = Column(Integer)
+    new_message_id = Column(Integer)
+    rule_id = Column(Integer, ForeignKey('rules.id'))
+
+    def __repr__(self):
+        return f'<Forward> {self.original_message_id} {self.new_message_id}'

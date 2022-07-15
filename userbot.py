@@ -13,7 +13,7 @@ import telebot
 from menu import rule_menu
 
 from db_session import global_init, create_session
-from models import Rule, Filter, User
+from models import Rule, Filter, User, Forward
 
 
 logging.basicConfig(level=logging.WARNING,
@@ -63,30 +63,15 @@ def apply_filter(trigger, action, text: str):
 
 
 async def forward_message(app: Client, message: pyrogram.types.Message, target_chat: str, rule: Rule) -> bool:
-    print(f"Forwarding message {message.text} to {target_chat}")
+    logger.info(f"Forwarding message {message.text} to {target_chat}")
 
     # get filters for this rule
     session = create_session()
     filters: List[Filter] = session.query(
         Filter).filter(Filter.rule_id == rule.id).all()
+    # add general filters
     filters += session.query(Filter).filter(Filter.is_general == True).all()
     session.close()
-
-    # if messahe is reply
-    if message.reply_to_message:
-        reply_message = message.reply_to_message
-
-        if reply_message.text:
-            datetime_srt = f'{reply_message.date: %d.%m %H:%M}'
-
-            reply_message.text = f"[__In reply from{datetime_srt}__]\n" + \
-                reply_message.text
-            print(reply_message.text)
-
-        await reply_message.copy(
-            chat_id=target_chat,
-            parse_mode=enums.ParseMode.MARKDOWN
-        )
 
     for filter in filters:
         if not filter.is_enabled:
@@ -126,9 +111,56 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
             elif applying_filter_status == 'replaced':
                 message.caption = applying_filter_text
 
-    await message.copy(
-        int(target_chat),
-    )
+    # if messahe is reply
+    if message.reply_to_message:
+        # search reply message in db
+        session = create_session()
+        forward = session.query(Forward).filter(
+            Forward.new_message_id == message.reply_to_message.id and Forward.rule_id == rule.id).first()
+        session.close()
+
+        # if reply message is found
+        if forward:
+            # reply message
+
+            new_message = await message.copy(
+                chat_id=int(target_chat),
+                reply_to_message_id=forward.original_message_id,
+            )
+
+        else:
+            # if reply message is not found
+            # send copy of original message to target chat
+            reply_message = message.reply_to_message
+
+            if reply_message.text:
+                datetime_srt = f'{reply_message.date: %d.%m %H:%M}'
+
+                reply_message.text = f"[__In reply from{datetime_srt}__]\n" + \
+                    reply_message.text
+
+            new_original_message = await reply_message.copy(
+                chat_id=target_chat,
+                parse_mode=enums.ParseMode.MARKDOWN
+            )
+
+            new_message = await message.copy(
+                int(target_chat),
+            )
+
+    else:
+        #  simply copy original message to target chat
+        new_message = await message.copy(
+            int(target_chat),
+        )
+
+    # add forward to db
+    session = create_session()
+    forward = Forward(original_message_id=message.id,
+                      new_message_id=new_message.id, rule_id=rule.id)
+    session.add(forward)
+    session.commit()
+    session.close()
 
     return True
 
