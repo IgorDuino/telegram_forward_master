@@ -68,6 +68,8 @@ def add_filter_trigger_menu():
     keyboard.add(
         InlineKeyboardButton(text="Слово или фразу", callback_data=f"add-filter-trigger_phrase@{randint(1, 100)}"))
     keyboard.add(
+        InlineKeyboardButton(text="Часть слова", callback_data=f"add-filter-trigger_part@{randint(1, 100)}"))
+    keyboard.add(
         InlineKeyboardButton(text="Любой номер телефона", callback_data=f"add-filter-trigger_phone@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Любую почту", callback_data=f"add-filter-trigger_mail@{randint(1, 100)}"))
@@ -87,7 +89,7 @@ def add_filter_action_menu():
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
-        InlineKeyboardButton(text="Заменить на что-либо", callback_data=f"add-filter-action_phrase@{randint(1, 100)}"))
+        InlineKeyboardButton(text="Заменить триггер", callback_data=f"add-filter-action_phrase@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Удалить триггер", callback_data=f"add-filter-action_delete@{randint(1, 100)}"))
     keyboard.add(

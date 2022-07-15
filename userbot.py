@@ -38,26 +38,27 @@ def disable_rule(rule: Rule):
     session.close()
 
 
-def apply_filter(trigger, action, text: str):
-    status: Literal['not applied', 'cancel-forward',
+def apply_filter(trigger, action, text: str, is_fullword=False) -> Tuple[str, str]:
+    status: Literal['not-applied', 'cancel-forward',
                     'disable-rule', 'replaced'] = 'not applied'
 
-    regexes = {
-        "mail": r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
-        "telegram": r"\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*",
-        "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}",
-        "link": r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
-        "card": r"(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)"
-    }
+    trigger = r'{}'.format(trigger)
 
-    regex = regexes.get(trigger, trigger)
-
-    if list(re.finditer(regex, text, re.IGNORECASE)):
+    if list(re.finditer(trigger, text, re.IGNORECASE)):
         if action in ['cancel-forward', 'disable-rule']:
             status = action
         else:
             status = 'replaced'
-            text = re.sub(regex, action, text, flags=re.IGNORECASE)
+
+            if is_fullword:
+                splited_text = text.split(' ')
+                for i, word in enumerate(splited_text):
+                    if trigger.lower() in word.lower():
+                        splited_text[i] = action
+                text = ' '.join(list(filter(('').__ne__, splited_text)))
+
+            else:
+                text = re.sub(trigger, action, text, flags=re.IGNORECASE)
 
     return (status, text)
 
@@ -80,7 +81,7 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         # apply filter to message text
         if message.text:
             applying_filter_status, applying_filter_text = apply_filter(
-                filter.replace_word, filter.to_replace_word, message.text)
+                filter.replace_word, filter.to_replace_word, message.text, filter.is_fullword)
 
             if applying_filter_status == 'disable-rule':
                 disable_rule(rule)
@@ -97,7 +98,7 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
         # apply filter to message caption
         if message.caption:
             applying_filter_status, applying_filter_text = apply_filter(
-                filter.replace_word, filter.to_replace_word, message.caption)
+                filter.replace_word, filter.to_replace_word, message.caption, filter.is_fullword)
 
             if applying_filter_status == 'disable-rule':
                 disable_rule(rule)

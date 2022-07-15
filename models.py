@@ -19,8 +19,10 @@ class Filter(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'filters'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String)
     is_general = Column(Boolean, default=False)
     is_enabled = Column(Boolean, default=True)
+    is_fullword = Column(Boolean, default=False)
     replace_word = Column(String)
     to_replace_word = Column(String)
     rule_id = Column(Integer, ForeignKey('rules.id'), nullable=True)
