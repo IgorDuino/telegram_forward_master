@@ -107,30 +107,10 @@ def filters_menu(rule_id, filters: List[Filter]):
     keyboard = InlineKeyboardMarkup()
 
     for i, filter in enumerate(filters):
-        trigger_replace_dict = {
-            "telegram": "Telegram ник",
-            "card": "Номер карты",
-            "phone": "Телефон",
-            "mail": "Эл. почта",
-            "link": "Ссылка"
-        }
-
-        trigger = trigger_replace_dict.get(
-            filter.replace_word, filter.replace_word)
-
-        action_replace_dict = {
-            "": "Удалить триггер",
-            "disable-rule": "Отключение правила",
-            "cancel-forward": "Отмена пересылки"}
-
-        action = action_replace_dict.get(
-            filter.to_replace_word, filter.to_replace_word)
-
-        title = f"{trigger} → {action}"
         status = "🟢" if filter.is_enabled else "🔴"
 
         keyboard.add(
-            InlineKeyboardButton(text=f"{status} {i+1}. {title}", callback_data=f"filter_{filter.id}@{randint(1, 100)}"))
+            InlineKeyboardButton(text=f"{status} {i+1}. {filter.name}", callback_data=f"filter_{filter.id}@{randint(1, 100)}"))
 
     if rule_id == -1:
         keyboard.add(InlineKeyboardButton(

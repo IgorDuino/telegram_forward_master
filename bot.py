@@ -36,10 +36,11 @@ def add_filter(chat_id):
     temp_filter = temp_filters[chat_id]
 
     trigger_replace_dict = {
-        "telegram": "Telegram ник",
-        "phone": "Телефон",
-        "mail": "Эл. почта",
-        "link": "Ссылка"
+        "\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*": "Telegram ник",
+        "((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}": "Телефон",
+        "([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)": "Эл. почта",
+        "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+": "Ссылка",
+        "(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)": "Номер карты"
     }
 
     trigger = trigger_replace_dict.get(
