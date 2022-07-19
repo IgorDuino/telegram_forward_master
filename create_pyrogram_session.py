@@ -2,7 +2,7 @@
 from decouple import Config, RepositoryEnv
 from pyrogram import Client
 
-DOTENV_FILE = 'prod.env'
+DOTENV_FILE = '.env'
 env_config = Config(RepositoryEnv(DOTENV_FILE))
 
 
