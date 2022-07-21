@@ -1,3 +1,4 @@
+from turtle import forward
 from decouple import config
 from typing import List, Literal, Tuple
 import logging
@@ -116,17 +117,24 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     if message.reply_to_message:
         # search reply message in db
         session = create_session()
+        print(message.reply_to_message.id)
         forward = session.query(Forward).filter(
             Forward.new_message_id == message.reply_to_message.id and Forward.rule_id == rule.id).first()
+        forward_self = session.query(Forward).filter(
+            Forward.original_message_id == message.reply_to_message.id and Forward.rule_id == rule.id).first()
         session.close()
 
         # if reply message is found
-        if forward:
+        if forward or forward_self:
             # reply message
+            if forward:
+                reply_to_message_id = forward.original_message_id
+            else:
+                reply_to_message_id = forward_self.new_message_id
 
             new_message = await message.copy(
                 chat_id=int(target_chat),
-                reply_to_message_id=forward.original_message_id,
+                reply_to_message_id=reply_to_message_id,
             )
 
         else:
