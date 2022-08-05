@@ -1,4 +1,3 @@
-from turtle import forward
 from decouple import config
 from typing import List, Literal, Tuple
 import logging
@@ -256,6 +255,31 @@ def main():
     app = Client(account_name, phone_number=phone_number,
                  api_hash=api_hash, api_id=api_id)
 
+    @app.on_message(filters.group)
+    async def chat_handler(client, message):
+        first_rules, second_rules = await get_rules_by_first_user(
+            app, f"chat@{message.chat.title}", " ")
+        for rule in first_rules:
+            if not rule.is_enabled:
+                continue
+
+            if rule.direction == Rule.DIRECTION_SECOND_TO_FIRST:
+                continue
+
+            target_chat = rule.second_user_tg_id
+            await forward_message(app, message, target_chat, rule)
+
+        for rule in second_rules:
+            if not rule.is_enabled:
+                continue
+
+            if rule.direction == Rule.DIRECTION_FIRST_TO_SECOND:
+                continue
+
+            target_chat = rule.first_user_tg_id
+
+            await forward_message(app, message, target_chat, rule)
+
     @ app.on_message(filters.private)
     async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
         session = create_session()
@@ -270,6 +294,7 @@ def main():
             return False
 
         from_id = str(message.from_user.id)
+
         if message.from_user.first_name:
             if message.from_user.last_name:
                 from_user_contact = f"{message.from_user.first_name} {message.from_user.last_name}"

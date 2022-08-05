@@ -1,6 +1,5 @@
 #!venv/bin/python
 
-from turtle import forward, title
 from decouple import config
 from db_session import global_init, create_session
 from models import Rule, Filter, User
@@ -196,40 +195,55 @@ def add_rule_second_user_contact_name(message: telebot.types.Message):
     bot.register_next_step_handler(msg, add_rule_direction)
 
 
-def add_rule_first_user(message: telebot.types.Message):
-    if not message.forward_from and not message.forward_sender_name:
-        msg = bot.send_message(
-            message.chat.id, "Перешлите мне сообщение от первого пользователя")
-        bot.register_next_step_handler(msg, add_rule_first_user)
-        return
+def add_rule_first_user(message: telebot.types.Message, type: int):
+    if type == 1:
+        if not message.forward_from and not message.forward_sender_name:
+            msg = bot.send_message(
+                message.chat.id, "Перешлите мне сообщение от первого пользователя")
+            bot.register_next_step_handler(msg, add_rule_first_user)
+            return
 
-    if message.forward_from:
-        forward_id = message.forward_from.id
-        forward_name = message.forward_from.first_name
+        if message.forward_from:
+            forward_id = message.forward_from.id
+            forward_name = message.forward_from.first_name
+            temp_rules[message.chat.id] = {
+                'first_user_id': forward_id,
+                'second_user_id': None,
+                'first_user_name': forward_name,
+                'second_user_name': None,
+                'type': None,
+                'filters': []
+            }
+
+        else:
+            # there is not all the necessary data -> request a name in contacts
+            forward_name = message.forward_sender_name
+
+            temp_rules[message.chat.id] = {
+                'first_user_id': None,
+                'second_user_id': None,
+                'first_user_name': forward_name,
+                'second_user_name': None,
+                'type': None
+            }
+            msg = bot.send_message(
+                message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
+            bot.register_next_step_handler(
+                msg, add_rule_first_user_contact_name)
+            return
+
     else:
-        # there is not all the necessary data -> request a name in contacts
-        forward_name = message.forward_sender_name
+        forward_id = f"chat@{message.text}"
+        forward_name = message.text
 
         temp_rules[message.chat.id] = {
-            'first_user_id': None,
+            'first_user_id': forward_id,
             'second_user_id': None,
             'first_user_name': forward_name,
             'second_user_name': None,
-            'type': None
+            'type': None,
+            'filters': []
         }
-        msg = bot.send_message(
-            message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
-        bot.register_next_step_handler(msg, add_rule_first_user_contact_name)
-        return
-
-    temp_rules[message.chat.id] = {
-        'first_user_id': forward_id,
-        'second_user_id': None,
-        'first_user_name': forward_name,
-        'second_user_name': None,
-        'type': None,
-        'filters': []
-    }
 
     msg = bot.send_message(
         message.chat.id, "Сохранил, теперь, чтобы добавить второй контакт пользователя перешлите мне любое его сообщение")
@@ -356,8 +370,13 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
     if call.data.split('_')[-1] == 'remove-temp-filter':
         try:
+            del temp_filters[call.message.chat.id]
+        except:
+            pass
+    elif call.data.split('_')[-1] == 'remove-temp-rule':
+        try:
             del temp_rules[call.message.chat.id]
-        except KeyError:
+        except:
             pass
 
     if call.data.startswith('main-menu'):
@@ -435,11 +454,23 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
 
-    elif call.data.startswith('add-rule'):
+    elif call.data.startswith('add-rule-type'):
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Выберите от куда пересылать", reply_markup=menu.add_rule_type_menu())
+
+    elif call.data.startswith('add-rule-user'):
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
                                     message_id=call.message.message_id, text="Чтобы добавить первого пользователя перешлите мне любое его сообщение")
 
-        bot.register_next_step_handler(msg, add_rule_first_user)
+        bot.register_next_step_handler(
+            msg, lambda m: add_rule_first_user(m, type=1))
+
+    elif call.data.startswith('add-rule-chat'):
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Чтобы добавить первый чат перешлите мне любое сообщение из неого")
+
+        bot.register_next_step_handler(
+            msg, lambda m: add_rule_first_user(m, type=2))
 
     # delete rule
     elif call.data.startswith('delete-rule_'):
@@ -573,7 +604,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             regexes = {
                 "mail": r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
                 "telegram": r"\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*",
-                "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}",
+                "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}", 
                 "link": r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
                 "card": r"(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)"
             }
