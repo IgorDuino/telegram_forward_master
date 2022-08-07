@@ -5,7 +5,6 @@ from db_session import global_init, create_session
 from models import Rule, Filter, User, Forward
 import telebot
 import menu
-from userbot import is_almsost_digit
 
 
 api_token = config("BOT_API", cast=str)
@@ -16,7 +15,7 @@ temp_rules = {}
 temp_filters = {}
 
 
-def is_almost_digit(text):
+def is_almost_digit(text: str) -> bool:
     return set("0123456789-").issuperset(set(text))
 
 

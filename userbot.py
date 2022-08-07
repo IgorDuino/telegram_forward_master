@@ -175,9 +175,8 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     return True
 
 
-def is_almsost_digit(text: str) -> bool:
-    alphabet = "-+0123456789"
-    return len(set(text) | set(alphabet)) == len(alphabet)
+def is_almost_digit(text: str) -> bool:
+    return set("0123456789-").issuperset(set(text))
 
 
 async def get_rules_by_first_user(app: Client, user_tg_id: str, user_contact: str) -> Tuple[List[Rule], List[Rule]]:
