@@ -10,7 +10,7 @@ def main_menu(state):
     keyboard.add(
         InlineKeyboardButton(text="Все правила", callback_data=f"all-rules@{randint(1, 100)}"))
     keyboard.add(
-        InlineKeyboardButton(text="Добавить правило", callback_data=f"add-rule@{randint(1, 100)}@{randint(1, 100)}"))
+        InlineKeyboardButton(text="Добавить правило", callback_data=f"add-rule-type@{randint(1, 100)}@{randint(1, 100)}"))
 
     keyboard.add(
         InlineKeyboardButton(text="Общие фильтры", callback_data=f"filters_general@{randint(1, 100)}@{randint(1, 100)}"))
@@ -23,6 +23,19 @@ def main_menu(state):
     else:
         keyboard.add(
             InlineKeyboardButton(text="Включить бота 🟢", callback_data=f"enable-bot@{randint(1, 100)}"))
+
+    return keyboard
+
+
+def add_rule_type_menu(n: int):
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(text="От человека" if n == 1 else "Человеку", callback_data=f"add-rule-user_{n}@{randint(1, 100)}"))
+    keyboard.add(
+        InlineKeyboardButton(text="Из чата" if n == 1 else "В чат", callback_data=f"add-rule-chat_{n}@{randint(1, 100)}"))
+    keyboard.add(
+        InlineKeyboardButton(text="Отмена 🚫", callback_data=f"all-rules_remove-temp-rule@{randint(1, 100)}"))
 
     return keyboard
 

@@ -1,4 +1,3 @@
-from turtle import forward
 from decouple import config
 from typing import List, Literal, Tuple
 import logging
@@ -22,6 +21,7 @@ logging.basicConfig(level=logging.WARNING,
 logger = logging.getLogger(__name__)
 
 api_token = config("BOT_API", cast=str)
+telegram_id = config('TELEGRAM_ID', cast=str)
 
 bot = telebot.TeleBot(api_token)
 
@@ -66,6 +66,8 @@ def apply_filter(trigger, action, text: str, is_fullword=False) -> Tuple[str, st
 
 async def forward_message(app: Client, message: pyrogram.types.Message, target_chat: str, rule: Rule) -> bool:
     logger.info(f"Forwarding message {message.text} to {target_chat}")
+
+    target_chat = target_chat.split('@')[-1]
 
     # get filters for this rule
     session = create_session()
@@ -117,7 +119,6 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     if message.reply_to_message:
         # search reply message in db
         session = create_session()
-        print(message.reply_to_message.id)
         forward = session.query(Forward).filter(
             Forward.new_message_id == message.reply_to_message.id and Forward.rule_id == rule.id).first()
         forward_self = session.query(Forward).filter(
@@ -174,9 +175,8 @@ async def forward_message(app: Client, message: pyrogram.types.Message, target_c
     return True
 
 
-def is_almsost_digit(text: str) -> bool:
-    alphabet = "-+0123456789"
-    return len(set(text) | set(alphabet)) == len(alphabet)
+def is_almost_digit(text: str) -> bool:
+    return set("0123456789-").issuperset(set(text))
 
 
 async def get_rules_by_first_user(app: Client, user_tg_id: str, user_contact: str) -> Tuple[List[Rule], List[Rule]]:
@@ -256,8 +256,70 @@ def main():
     app = Client(account_name, phone_number=phone_number,
                  api_hash=api_hash, api_id=api_id)
 
-    @ app.on_message(filters.private)
-    async def main_handler(client, message: pyrogram.types.messages_and_media.Message):
+    @app.on_deleted_messages()
+    async def on_deleted_messages(client, messages):
+        forwards = []
+        new_messages_ids = []
+
+        session = create_session()
+        for message in messages:
+            forward = session.query(Forward).filter(
+                Forward.original_message_id == message.id).first()
+            if forward:
+                forwards.append(forward)
+                new_messages_ids.append(forward.new_message_id)
+
+        if forwards:
+            # get rule
+            rule = session.query(Rule).filter(
+                Rule.id == forwards[0].rule_id).first()
+
+            await app.delete_messages(rule.second_user_tg_id, new_messages_ids)
+
+        session.close()
+
+    @app.on_edited_message()
+    async def on_edited_message(client: Client, message: pyrogram.types.Message):
+        session = create_session()
+        forward = session.query(Forward).filter(
+            Forward.original_message_id == message.id).first()
+
+        if forward:
+            # forward.new_message_id
+            rule = session.query(Rule).filter(
+                Rule.id == forward.rule_id).first()
+            await app.edit_message_text(rule.second_user_tg_id, forward.new_message_id, message.text)
+
+        session.close()
+
+    @app.on_message(filters.group)
+    async def chat_handler(client, message):
+        first_rules, second_rules = await get_rules_by_first_user(
+            app, f"chat@{message.chat.id}", " ")
+        for rule in first_rules:
+            if not rule.is_enabled:
+                continue
+
+            if rule.direction == Rule.DIRECTION_SECOND_TO_FIRST:
+                continue
+
+            target_chat = rule.second_user_tg_id
+
+            await forward_message(app, message, target_chat, rule)
+
+        for rule in second_rules:
+            if not rule.is_enabled:
+                continue
+
+            if rule.direction == Rule.DIRECTION_FIRST_TO_SECOND:
+                continue
+
+            target_chat = rule.first_user_tg_id
+
+            await forward_message(app, message, target_chat, rule)
+
+    @app.on_message(filters.private)
+    async def private_handler(client, message: pyrogram.types.messages_and_media.Message):
         session = create_session()
         user = session.query(User).filter(User.tg_id == telegram_id).all()
         session.close()
@@ -270,6 +332,7 @@ def main():
             return False
 
         from_id = str(message.from_user.id)
+
         if message.from_user.first_name:
             if message.from_user.last_name:
                 from_user_contact = f"{message.from_user.first_name} {message.from_user.last_name}"
@@ -289,7 +352,8 @@ def main():
                 continue
 
             target_chat = rule.second_user_tg_id
-            if not is_almsost_digit(target_chat):
+
+            if (not is_almsost_digit(target_chat)) and (not target_chat.startswith("chat@")):
                 target_chat = await replace_chat_id_in_database(app, rule, target_chat, 2)
 
             await forward_message(app, message, target_chat, rule)
@@ -302,7 +366,7 @@ def main():
                 continue
 
             target_chat = rule.first_user_tg_id
-            if not is_almsost_digit(target_chat):
+            if (not is_almsost_digit(target_chat)) and (not target_chat.startswith("chat@")):
                 target_chat = await replace_chat_id_in_database(app, rule, target_chat, 1)
 
             await forward_message(app, message, target_chat, rule)
@@ -318,7 +382,6 @@ if __name__ == '__main__':
     db_password = config('POSTGRES_PASSWORD', cast=str)
     db_host = config('DB_HOST', cast=str)
     db_port = config('POSTGRES_PORT', cast=int)
-    telegram_id = config('TELEGRAM_ID', cast=str)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
     logger.info("DB initialized")
