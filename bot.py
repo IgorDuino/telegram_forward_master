@@ -2,9 +2,10 @@
 
 from decouple import config
 from db_session import global_init, create_session
-from models import Rule, Filter, User
+from models import Rule, Filter, User, Forward
 import telebot
 import menu
+from userbot import is_almsost_digit
 
 
 api_token = config("BOT_API", cast=str)
@@ -13,6 +14,10 @@ bot = telebot.TeleBot(api_token)
 
 temp_rules = {}
 temp_filters = {}
+
+
+def is_almost_digit(text):
+    return set("0123456789-").issuperset(set(text))
 
 
 def add_rule(chat_id):
@@ -114,6 +119,12 @@ def disable_filter(filter: Filter):
 
 def delete_rule_by_id(rule_id):
     sessioin = create_session()
+
+    forwards = sessioin.query(Forward).filter(Forward.rule_id == rule_id).all()
+    for forward in forwards:
+        sessioin.delete(forward)
+    sessioin.commit()
+
     rule = sessioin.query(Rule).filter(Rule.id == rule_id).first()
     sessioin.delete(rule)
     sessioin.commit()
@@ -179,28 +190,44 @@ def get_filters(rule: Rule):
     return filters
 
 
+def add_rule_direction(message: telebot.types.Message):
+    if message.text in ['1', '2', '3']:
+        temp_rules[message.chat.id]['direction'] = message.text
+    else:
+        msg = bot.send_message(
+            message.chat.id, "Введите число 1, 2 или 3")
+        bot.register_next_step_handler(msg, add_rule_direction)
+        return
+    direction_emodji = ['🔄', '➡', '⬅']
+    temp_rules[message.chat.id][
+        'name'] = f"{temp_rules[message.chat.id]['first_user_name']} {direction_emodji[int(temp_rules[message.chat.id]['direction']) - 1]} {temp_rules[message.chat.id]['second_user_name']}"
+
+    rule = add_rule(message.chat.id)
+    keyboard = menu.main_menu(get_user(message.chat.id).status)
+
+    if rule:
+        msg = bot.send_message(
+            message.chat.id, "Правило успешно добавлено", reply_markup=keyboard)
+    else:
+        msg = bot.send_message(
+            message.chat.id, "Произошла ошибка, попробуйте еще раз", reply_markup=keyboard)
+
+
 def add_rule_first_user_contact_name(message: telebot.types.Message):
     temp_rules[message.chat.id]['first_user_id'] = message.text
 
-    msg = bot.send_message(
-        message.chat.id, "Сохранил, теперь, чтобы добавить второй контакт пользователя перешлите мне любое его сообщение")
-    bot.register_next_step_handler(msg, add_rule_second_user)
-
-
-def add_rule_second_user_contact_name(message: telebot.types.Message):
-    temp_rules[message.chat.id]['second_user_id'] = message.text
-
-    msg = bot.send_message(
-        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
-    bot.register_next_step_handler(msg, add_rule_direction)
+    msg = bot.edit_message_text(chat_id=message.chat.id,
+                                message_id=message.message_id, text="Выберите куда пересылать", reply_markup=menu.add_rule_type_menu(2))
 
 
 def add_rule_first_user(message: telebot.types.Message, type: int):
     if type == 1:
+        # user
         if not message.forward_from and not message.forward_sender_name:
             msg = bot.send_message(
                 message.chat.id, "Перешлите мне сообщение от первого пользователя")
-            bot.register_next_step_handler(msg, add_rule_first_user)
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_first_user(m, type=1))
             return
 
         if message.forward_from:
@@ -232,75 +259,79 @@ def add_rule_first_user(message: telebot.types.Message, type: int):
                 msg, add_rule_first_user_contact_name)
             return
 
-    else:
-        forward_id = f"chat@{message.text}"
-        forward_name = message.text
+    elif type == 2:
+        # group
+        if not is_almsost_digit(message.text):
+            msg = bot.send_message(
+                message.chat.id, "Введите ID группы")
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_first_user(m, type=2))
+            return
 
         temp_rules[message.chat.id] = {
-            'first_user_id': forward_id,
+            'first_user_id': f"chat@{message.text}",
             'second_user_id': None,
-            'first_user_name': forward_name,
+            'first_user_name': f"chat@{message.text}",
             'second_user_name': None,
             'type': None,
             'filters': []
         }
 
     msg = bot.send_message(
-        message.chat.id, "Сохранил, теперь, чтобы добавить второй контакт пользователя перешлите мне любое его сообщение")
-    bot.register_next_step_handler(msg, add_rule_second_user)
+        message.chat.id, "Куда будем пересылать?", reply_markup=menu.add_rule_type_menu(2))
 
 
-def add_rule_second_user(message: telebot.types.Message):
-    if not message.forward_from and not message.forward_sender_name:
-        msg = bot.send_message(
-            message.chat.id, "Перешлите мне сообщение от второго пользователя")
-        bot.register_next_step_handler(msg, add_rule_second_user)
-        return
-
-    if message.forward_from:
-        forward_id = message.forward_from.id
-        forward_name = message.forward_from.first_name
-
-    else:
-        # there is not all the necessary data -> request a name in contacts
-        forward_name = message.forward_sender_name
-
-        temp_rules[message.chat.id]['second_user_name'] = forward_name
-
-        msg = bot.send_message(
-            message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
-        bot.register_next_step_handler(msg, add_rule_second_user_contact_name)
-        return
-
-    temp_rules[message.chat.id]['second_user_id'] = forward_id
-    temp_rules[message.chat.id]['second_user_name'] = forward_name
+def add_rule_second_user_contact_name(message: telebot.types.Message):
+    temp_rules[message.chat.id]['second_user_id'] = message.text
 
     msg = bot.send_message(
         message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
     bot.register_next_step_handler(msg, add_rule_direction)
 
 
-def add_rule_direction(message: telebot.types.Message):
-    if message.text in ['1', '2', '3']:
-        temp_rules[message.chat.id]['direction'] = message.text
-    else:
-        msg = bot.send_message(
-            message.chat.id, "Введите число 1, 2 или 3")
-        bot.register_next_step_handler(msg, add_rule_direction)
-        return
-    direction_emodji = ['🔄', '➡', '⬅']
-    temp_rules[message.chat.id][
-        'name'] = f"{temp_rules[message.chat.id]['first_user_name']} {direction_emodji[int(temp_rules[message.chat.id]['direction']) - 1]} {temp_rules[message.chat.id]['second_user_name']}"
+def add_rule_second_user(message: telebot.types.Message, type: int):
+    if type == 1:
+        # user
+        if not message.forward_from and not message.forward_sender_name:
+            msg = bot.send_message(
+                message.chat.id, "Перешлите мне сообщение от второго пользователя")
+            bot.register_next_step_handler(msg, add_rule_second_user)
+            return
 
-    rule = add_rule(message.chat.id)
-    keyboard = menu.main_menu(get_user(message.chat.id).status)
+        if message.forward_from:
+            forward_id = message.forward_from.id
+            forward_name = message.forward_from.first_name
 
-    if rule:
-        msg = bot.send_message(
-            message.chat.id, "Правило успешно добавлено", reply_markup=keyboard)
-    else:
-        msg = bot.send_message(
-            message.chat.id, "Произошла ошибка, попробуйте еще раз", reply_markup=keyboard)
+        else:
+            # there is not all the necessary data -> request a name in contacts
+            forward_name = message.forward_sender_name
+
+            temp_rules[message.chat.id]['second_user_name'] = forward_name
+
+            msg = bot.send_message(
+                message.chat.id, "Из-за политики приватности данного пользователя мне не удалось узнать его ID.  \n\nДля продолжения добавьте данного пользователя в контакты Telgram и пришлите мне то, как его назвали тоно.")
+            bot.register_next_step_handler(
+                msg, add_rule_second_user_contact_name)
+            return
+
+        temp_rules[message.chat.id]['second_user_id'] = forward_id
+        temp_rules[message.chat.id]['second_user_name'] = forward_name
+
+    elif type == 2:
+        # group
+        if not is_almsost_digit(message.text):
+            msg = bot.send_message(
+                message.chat.id, "Введите ID группы")
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_second_user(m, type=2))
+            return
+
+        temp_rules[message.chat.id]['second_user_id'] = f"chat@{message.text}"
+        temp_rules[message.chat.id]['second_user_name'] = f"chat@{message.text}"
+
+    msg = bot.send_message(
+        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
+    bot.register_next_step_handler(msg, add_rule_direction)
 
 
 def add_filter_trigger_phrase(message: telebot.types.Message):
@@ -456,21 +487,33 @@ def callback_inline(call: telebot.types.CallbackQuery):
 
     elif call.data.startswith('add-rule-type'):
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, text="Выберите от куда пересылать", reply_markup=menu.add_rule_type_menu())
+                                    message_id=call.message.message_id, text="Выберите от куда пересылать", reply_markup=menu.add_rule_type_menu(1))
 
     elif call.data.startswith('add-rule-user'):
-        msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, text="Чтобы добавить первого пользователя перешлите мне любое его сообщение")
+        n = int(call.data.split('_')[1])
 
-        bot.register_next_step_handler(
-            msg, lambda m: add_rule_first_user(m, type=1))
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Чтобы добавить пользователя перешлите мне любое его сообщение")
+
+        if n == 1:
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_first_user(m, type=1))
+        elif n == 2:
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_second_user(m, type=1))
 
     elif call.data.startswith('add-rule-chat'):
-        msg = bot.edit_message_text(chat_id=call.message.chat.id,
-                                    message_id=call.message.message_id, text="Чтобы добавить первый чат перешлите мне любое сообщение из неого")
+        n = int(call.data.split('_')[1])
 
-        bot.register_next_step_handler(
-            msg, lambda m: add_rule_first_user(m, type=2))
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Чтобы добавить чат пришлите мне его ID (вместе с '-' если он там есть)")
+
+        if n == 1:
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_first_user(m, type=2))
+        elif n == 2:
+            bot.register_next_step_handler(
+                msg, lambda m: add_rule_second_user(m, type=2))
 
     # delete rule
     elif call.data.startswith('delete-rule_'):
@@ -604,7 +647,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
             regexes = {
                 "mail": r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)",
                 "telegram": r"\B@(?=\w{5,32}\b)[a-zA-Z0-9]+(?:_[a-zA-Z0-9]+)*",
-                "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}", 
+                "phone": r"((8|\+7)[\- ]?)?(\(?\d{3}\)?[\- ]?)?[\d\- ]{7,10}",
                 "link": r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
                 "card": r"(?<!\d)\d{16}(?!\d)|(?<!\d[ _-])(?<!\d)\d{4}(?:[_ -]\d{4}){3}(?![_ -]?\d)"
             }

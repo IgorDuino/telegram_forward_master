@@ -27,13 +27,13 @@ def main_menu(state):
     return keyboard
 
 
-def add_rule_type_menu():
+def add_rule_type_menu(n: int):
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
-        InlineKeyboardButton(text="От человека", callback_data=f"add-rule-user@{randint(1, 100)}"))
+        InlineKeyboardButton(text="От человека" if n == 1 else "Человеку", callback_data=f"add-rule-user_{n}@{randint(1, 100)}"))
     keyboard.add(
-        InlineKeyboardButton(text="Из чата", callback_data=f"add-rule-chat@{randint(1, 100)}"))
+        InlineKeyboardButton(text="Из чата" if n == 1 else "В чат", callback_data=f"add-rule-chat_{n}@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Отмена 🚫", callback_data=f"all-rules_remove-temp-rule@{randint(1, 100)}"))
 
