@@ -214,9 +214,8 @@ def add_rule_direction(message: telebot.types.Message):
 
 def add_rule_first_user_contact_name(message: telebot.types.Message):
     temp_rules[message.chat.id]['first_user_id'] = message.text
-
-    msg = bot.edit_message_text(chat_id=message.chat.id,
-                                message_id=message.message_id, text="Выберите куда пересылать", reply_markup=menu.add_rule_type_menu(2))
+    msg = bot.send_message(
+        message.chat.id, "Куда будем пересылать?", reply_markup=menu.add_rule_type_menu(2))
 
 
 def add_rule_first_user(message: telebot.types.Message, type: int):
