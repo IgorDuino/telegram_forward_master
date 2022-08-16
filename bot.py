@@ -260,7 +260,7 @@ def add_rule_first_user(message: telebot.types.Message, type: int):
 
     elif type == 2:
         # group
-        if not is_almsost_digit(message.text):
+        if not is_almost_digit(message.text):
             msg = bot.send_message(
                 message.chat.id, "Введите ID группы")
             bot.register_next_step_handler(
@@ -318,7 +318,7 @@ def add_rule_second_user(message: telebot.types.Message, type: int):
 
     elif type == 2:
         # group
-        if not is_almsost_digit(message.text):
+        if not is_almost_digit(message.text):
             msg = bot.send_message(
                 message.chat.id, "Введите ID группы")
             bot.register_next_step_handler(

@@ -353,7 +353,7 @@ def main():
 
             target_chat = rule.second_user_tg_id
 
-            if (not is_almsost_digit(target_chat)) and (not target_chat.startswith("chat@")):
+            if (not is_almost_digit(target_chat)) and (not target_chat.startswith("chat@")):
                 target_chat = await replace_chat_id_in_database(app, rule, target_chat, 2)
 
             await forward_message(app, message, target_chat, rule)
@@ -366,7 +366,7 @@ def main():
                 continue
 
             target_chat = rule.first_user_tg_id
-            if (not is_almsost_digit(target_chat)) and (not target_chat.startswith("chat@")):
+            if (not is_almost_digit(target_chat)) and (not target_chat.startswith("chat@")):
                 target_chat = await replace_chat_id_in_database(app, rule, target_chat, 1)
 
             await forward_message(app, message, target_chat, rule)
