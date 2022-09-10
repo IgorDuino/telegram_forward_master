@@ -294,6 +294,11 @@ def main():
 
     @app.on_message(filters.group)
     async def chat_handler(client, message):
+        try:
+            if message.from_user.id == telegram_id:
+                return
+        except:
+            pass
         first_rules, second_rules = await get_rules_by_first_user(
             app, f"chat@{message.chat.id}", " ")
         for rule in first_rules:
