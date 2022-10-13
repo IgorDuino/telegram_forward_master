@@ -24,6 +24,9 @@ def main_menu(state):
         keyboard.add(
             InlineKeyboardButton(text="Включить бота 🟢", callback_data=f"enable-bot@{randint(1, 100)}"))
 
+    keyboard.add(
+        InlineKeyboardButton(text="Перезапуск системы", callback_data=f"docker-restart@{randint(1, 100)}"))
+
     return keyboard
 
 

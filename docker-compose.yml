@@ -16,6 +16,8 @@ services:
       context: .
       dockerfile: Dockerfile.bot
     restart: always
+    volumes:
+      - ./restart.sh:/usr/src/app/restart.sh
     links:
       - db
     depends_on:

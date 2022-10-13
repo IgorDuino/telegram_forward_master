@@ -416,6 +416,16 @@ def callback_inline(call: telebot.types.CallbackQuery):
             reply_markup=menu.main_menu(get_user(call.message.chat.id).status)
         )
 
+    elif call.data.startswith('docker-restart'):
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Система будет перезагружена в течении 1-2 минут",
+            reply_markup=menu.main_menu(get_user(call.message.chat.id).status)
+        )
+        with open('restart.sh', 'w') as f:
+            f.write('cd /root/app && docker-compose restart')
+
     elif call.data.startswith('all-rules'):
         rules = get_rules()
         if len(rules) == 0:
@@ -731,7 +741,10 @@ def main():
     db_port = config('POSTGRES_PORT', cast=int)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
-    bot.infinity_polling()
+    bot.send_message(config('TELEGRAM_ID', cast=int), 'Бот запущен')
+    with open('restart.sh', 'w') as f:
+        f.write(' ')
+    bot.polling(none_stop=True)
 
 
 if __name__ == '__main__':

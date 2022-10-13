@@ -1,4 +1,6 @@
 .env.example
+.env
+estart.sh
 .git
 __pycache__
 LICENSE

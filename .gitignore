@@ -1,6 +1,6 @@
 data
 log.txt
-
+restart.sh
 # telegram handler files
 .handler-saves
 
