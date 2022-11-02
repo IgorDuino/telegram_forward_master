@@ -741,7 +741,7 @@ def main():
     db_port = config('POSTGRES_PORT', cast=int)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
-    bot.send_message(config('TELEGRAM_ID', cast=int), 'Бот запущен')
+    # bot.send_message(config('TELEGRAM_ID', cast=int), 'Бот запущен')
     with open('restart.sh', 'w') as f:
         f.write(' ')
     bot.polling(none_stop=True)
