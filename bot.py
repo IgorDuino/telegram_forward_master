@@ -169,7 +169,7 @@ def get_rule_by_id(rule_id):
 
 def get_rules():
     sessioin = create_session()
-    rules = sessioin.query(Rule).all()
+    rules = sessioin.query(Rule).order_by(Rule.id).all()
     sessioin.close()
     return rules
 
@@ -444,7 +444,6 @@ def callback_inline(call: telebot.types.CallbackQuery):
                     get_user(call.message.chat.id).status))
         else:
             keyboard = menu.rules_menu(rules)
-
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Все правила", reply_markup=keyboard)
 
