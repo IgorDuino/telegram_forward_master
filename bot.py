@@ -197,9 +197,6 @@ def add_rule_direction(message: telebot.types.Message):
             message.chat.id, "Введите число 1, 2 или 3")
         bot.register_next_step_handler(msg, add_rule_direction)
         return
-    direction_emodji = ['🔄', '➡', '⬅']
-    # temp_rules[message.chat.id][
-    #     'name'] = f"{temp_rules[message.chat.id]['first_user_name']} {direction_emodji[int(temp_rules[message.chat.id]['direction']) - 1]} {temp_rules[message.chat.id]['second_user_name']}"
 
     rule = add_rule(message.chat.id)
     keyboard = menu.main_menu(get_user(message.chat.id).status)
@@ -457,8 +454,9 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         keyboard = menu.rule_menu(rule)
+        rule_participants = f"{rule.first_user_tg_id} { ['🔄', '➡', '⬅'][int(rule.direction) - 1]} {rule.second_user_tg_id}"
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text=f"Правило [{rule.id + 1}] {rule.name}", reply_markup=keyboard)
+                              message_id=call.message.message_id, text=f"Правило [{rule.id + 1}] {rule.name} \n {rule_participants}", reply_markup=keyboard)
 
     # enable rule
     elif call.data.startswith('enable-rule_'):
