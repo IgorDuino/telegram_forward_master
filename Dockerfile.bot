@@ -7,6 +7,6 @@ WORKDIR /usr/src/app
 COPY requirements.txt .
 RUN pip install --upgrade pip wheel setuptools && pip install --no-cache-dir -r requirements.txt
 
-COPY *.session db_session.py models.py menu.py bot.py /usr/src/app/
+COPY . .
 
 CMD [ "python", "bot.py" ] 

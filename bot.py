@@ -1,11 +1,10 @@
 #!venv/bin/python
 
-import telebot
 from decouple import config
-
+from db_session import global_init, create_session
+from models import Rule, Filter, User, Forward, Folder
+import telebot
 import menu
-from db_session import create_session, global_init
-from models import Filter, Forward, Rule, User
 
 api_token = config("BOT_API", cast=str)
 
@@ -33,6 +32,24 @@ def add_rule(chat_id):
     sessioin.commit()
     del temp_rules[chat_id]
     return rule
+
+
+def move_rule_from_folder(rule_id):
+    sessioin = create_session()
+    rule = sessioin.query(Rule).filter(Rule.id == rule_id).first()
+    rule.folder_id = None
+    sessioin.commit()
+    sessioin.close()
+    return True
+
+
+def move_rule_to_folder(rule_id, folder_id):
+    sessioin = create_session()
+    rule = sessioin.query(Rule).filter(Rule.id == rule_id).first()
+    rule.folder_id = folder_id
+    sessioin.commit()
+    sessioin.close()
+    return True
 
 
 def add_filter(chat_id):
@@ -98,6 +115,24 @@ def disable_rule(rule: Rule):
     return True
 
 
+def disable_folder(folder: Folder):
+    sessioin = create_session()
+    real_folder = sessioin.query(Folder).filter(Folder.id == folder.id).first()
+    real_folder.is_enabled = False
+    sessioin.commit()
+    sessioin.close()
+    return True
+
+
+def enable_folder(folder: Folder):
+    sessioin = create_session()
+    real_folder = sessioin.query(Folder).filter(Folder.id == folder.id).first()
+    real_folder.is_enabled = True
+    sessioin.commit()
+    sessioin.close()
+    return True
+
+
 def enable_filter(filter: Filter):
     sessioin = create_session()
     real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
@@ -111,6 +146,21 @@ def disable_filter(filter: Filter):
     sessioin = create_session()
     real_filter = sessioin.query(Filter).filter(Filter.id == filter.id).first()
     real_filter.is_enabled = False
+    sessioin.commit()
+    sessioin.close()
+    return True
+
+
+def delete_folder_by_id(folder_id: int):
+    sessioin = create_session()
+    folder = sessioin.query(Folder).filter(Folder.id == folder_id).first()
+    rules = sessioin.query(Rule).filter(Rule.folder_id == folder_id).all()
+
+    # remove folder_id from rules
+    for rule in rules:
+        rule.folder_id = None
+
+    sessioin.delete(folder)
     sessioin.commit()
     sessioin.close()
     return True
@@ -167,11 +217,27 @@ def get_rule_by_id(rule_id):
     return rule
 
 
-def get_rules():
+def get_rules_by_folder_id(folder_id):
     sessioin = create_session()
-    rules = sessioin.query(Rule).order_by(Rule.id).all()
+    rules = sessioin.query(Rule).filter(Rule.folder_id == folder_id).all()
     sessioin.close()
     return rules
+
+
+def get_folder_by_id(folder_id):
+    sessioin = create_session()
+    folder = sessioin.query(Folder).filter(Folder.id == folder_id).first()
+    sessioin.close()
+    return folder
+
+
+def get_rules_and_folders():
+    sessioin = create_session()
+    rules_without_folder = sessioin.query(Rule).filter(Rule.folder_id == None).all()
+    folders = sessioin.query(Folder).all()
+    sessioin.close()
+    rules_and_folders = folders + rules_without_folder
+    return rules_and_folders
 
 
 def get_filter_by_id(filter_id):
@@ -356,6 +422,22 @@ def add_filter_trigger_phrase(message: telebot.types.Message):
                      text="Выберите, что должен делать фильтр", reply_markup=keyboard)
 
 
+def add_folder(message: telebot.types.Message):
+    if not message.text:
+        msg = bot.send_message(
+            message.chat.id, "Введите название папки")
+        bot.register_next_step_handler(msg, add_folder)
+        return
+
+    folder = Folder(name=message.text)
+    sessioin = create_session()
+    sessioin.add(folder)
+    sessioin.commit()
+
+    bot.send_message(chat_id=message.chat.id,
+                        text="Папка успешно добавлена", reply_markup=menu.main_menu(get_user(message.chat.id).status))
+
+
 def add_filter_action_phrase(message: telebot.types.Message):
     if not message.text:
         msg = bot.send_message(
@@ -431,18 +513,36 @@ def callback_inline(call: telebot.types.CallbackQuery):
             f.write('cd /root/app && docker-compose restart')
 
     elif call.data.startswith('all-rules'):
-        rules = get_rules()
-        if len(rules) == 0:
+        rules_and_folders = get_rules_and_folders()
+        if len(rules_and_folders) == 0:
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="Пока нет правил",
+                text="Пока нет правил и папок",
                 reply_markup=menu.main_menu(
                     get_user(call.message.chat.id).status))
         else:
-            keyboard = menu.rules_menu(rules)
+            keyboard = menu.rules_and_folders(rules_and_folders)
+
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Все правила", reply_markup=keyboard)
+
+    # folder menu
+    elif call.data.startswith('folder_'):
+        folder_id = call.data.split('_')[-1]
+        folder = get_folder_by_id(folder_id)
+        if not folder:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        rules = get_rules_by_folder_id(folder_id)
+        keyboard = menu.folder_menu(folder, rules)
+        status = "🟢" if folder.is_enabled else "🔴"
+
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id, text=f"Папка {folder.name} {status}", reply_markup=keyboard)
+
 
     # rule menu
     elif call.data.startswith('rule_'):
@@ -456,7 +556,7 @@ def callback_inline(call: telebot.types.CallbackQuery):
         keyboard = menu.rule_menu(rule)
         rule_participants = f"{rule.first_user_tg_id} { ['🔄', '➡', '⬅'][int(rule.direction) - 1]} {rule.second_user_tg_id}"
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text=f"Правило [{rule.id + 1}] {rule.name} \n {rule_participants}", reply_markup=keyboard)
+                              message_id=call.message.message_id, text=f"Правило [{rule.id}] {rule.name} \n {rule_participants}", reply_markup=keyboard)
 
     # enable rule
     elif call.data.startswith('enable-rule_'):
@@ -475,8 +575,6 @@ def callback_inline(call: telebot.types.CallbackQuery):
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
-
-    # груповые чаты
 
     # disable rule
     elif call.data.startswith('disable-rule_'):
@@ -526,6 +624,80 @@ def callback_inline(call: telebot.types.CallbackQuery):
         elif n == 2:
             bot.register_next_step_handler(
                 msg, lambda m: add_rule_second_user(m, type=2))
+
+    # enable folder
+    elif call.data.startswith('enable-folder_'):
+        folder_id = int(call.data.split('_')[1])
+        folder = get_folder_by_id(folder_id)
+        if not folder:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка не найдена", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        if enable_folder(folder):
+            folder = get_folder_by_id(folder.id)
+            rules = get_rules_by_folder_id(folder.id)
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка включена", reply_markup=menu.folder_menu(folder, rules))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+                                    
+    # disable folder
+    elif call.data.startswith('disable-folder_'):
+        folder_id = int(call.data.split('_')[1])
+        folder = get_folder_by_id(folder_id)
+        if not folder:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка не найдена", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        if disable_folder(folder):
+            folder = get_folder_by_id(folder.id)
+            rules = get_rules_by_folder_id(folder.id)
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка выключена", reply_markup=menu.folder_menu(folder, rules))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+
+    # delete folder
+    elif call.data.startswith('delete-folder_'):
+        folder_id = int(call.data.split('_')[1])
+        folder = get_folder_by_id(folder_id)
+        if not folder:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка не найдена", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        if delete_folder_by_id(folder.id):
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Папка удалена (у правил убрана папка)", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+
+    # move rule from folder
+    elif call.data.startswith('move-rule-from-folder_'):
+        rule_id = int(call.data.split('_')[1])
+        rule = get_rule_by_id(rule_id)
+        if not rule:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Правило не найдено", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+            return
+        if move_rule_from_folder(rule.id):
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Правило удалено из папки", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
+        else:
+            bot.edit_message_text(chat_id=call.message.chat.id,
+                                  message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
+                                      get_user(call.message.chat.id).status))
 
     # delete rule
     elif call.data.startswith('delete-rule_'):
@@ -722,6 +894,12 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                   message_id=call.message.message_id, text="Произошла ошибка, попробуйте еще раз", reply_markup=menu.main_menu(
                                       get_user(call.message.chat.id).status))
 
+    # add folder
+    elif call.data.startswith('add-folder'):
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id, text="Введите название папки: ")
+        bot.register_next_step_handler(msg, add_folder)
+
     elif call.data.startswith('enable-bot'):
         set_user_status(call.message.chat.id, True)
         user = get_user(call.message.chat.id)
@@ -745,7 +923,7 @@ def main():
     db_port = config('POSTGRES_PORT', cast=int)
 
     global_init(db_user, db_password, db_host, db_port, db_name)
-    # bot.send_message(config('TELEGRAM_ID', cast=int), 'Бот запущен')
+
     with open('restart.sh', 'w') as f:
         f.write(' ')
     bot.polling(none_stop=True)

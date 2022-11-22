@@ -274,7 +274,10 @@ def main():
             rule = session.query(Rule).filter(
                 Rule.id == forwards[0].rule_id).first()
 
-            await app.delete_messages(rule.second_user_tg_id, new_messages_ids)
+            chat_id = rule.second_user_tg_id
+            if "chat" in chat_id:
+                chat_id = chat_id.split("@")[1]
+            await app.delete_messages(chat_id, new_messages_ids)
 
         session.close()
 
