@@ -1,5 +1,5 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from models import Rule, Filter
+from models import Rule, Filter, Folder
 from typing import List, Union
 from random import randint
 
@@ -8,22 +8,21 @@ def main_menu(state):
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
-        InlineKeyboardButton(text="Все правила", callback_data=f"all-rules@{randint(1, 100)}"))
+        InlineKeyboardButton(text="Правила и папки", callback_data=f"all-rules@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Добавить правило", callback_data=f"add-rule-type@{randint(1, 100)}@{randint(1, 100)}"))
-
+    keyboard.add(
+        InlineKeyboardButton(text="Добавить папку", callback_data=f"add-folder@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Общие фильтры", callback_data=f"filters_general@{randint(1, 100)}@{randint(1, 100)}"))
     keyboard.add(
         InlineKeyboardButton(text="Добавить общий фильтр", callback_data=f"add-filter_general@{randint(1, 100)}@{randint(1, 100)}"))
-
     if state:
         keyboard.add(
             InlineKeyboardButton(text="Отключить бота 🔴", callback_data=f"disable-bot@{randint(1, 100)}"))
     else:
         keyboard.add(
             InlineKeyboardButton(text="Включить бота 🟢", callback_data=f"enable-bot@{randint(1, 100)}"))
-
     keyboard.add(
         InlineKeyboardButton(text="Перезапуск системы", callback_data=f"docker-restart@{randint(1, 100)}"))
 
@@ -43,13 +42,21 @@ def add_rule_type_menu(n: int):
     return keyboard
 
 
-def rules_menu(rules: List[Rule]):
+def rules_and_folders(elements: List[Union[Rule, Folder]]):
     keyboard = InlineKeyboardMarkup()
 
-    for i, rule in enumerate(rules):
-        status = "🟢" if rule.is_enabled else "🔴"
-        keyboard.add(
-            InlineKeyboardButton(text=f"{status} {i+1}. {rule.name}", callback_data=f"rule_{rule.id}@{randint(1, 100)}"))
+    for i, element in enumerate(elements):
+        if type(element) == Rule:
+            rule = element
+            status = "🟢" if rule.is_enabled else "🔴"
+            keyboard.add(
+                InlineKeyboardButton(text=f"{status}  {rule.name}", callback_data=f"rule_{rule.id}@{randint(1, 100)}"))
+
+        elif type(element) == Folder:
+            folder = element
+            status = "🟢" if folder.is_enabled else "🔴"
+            keyboard.add(
+                InlineKeyboardButton(text=f"📁 {status}  {folder.name}", callback_data=f"folder_{folder.id}@{randint(1, 100)}"))
 
     keyboard.add(InlineKeyboardButton(
         text="Назад 🔙", callback_data=f"main-menu@{randint(1, 100)}"))
@@ -73,10 +80,36 @@ def rule_menu(rule: Rule):
     keyboard.add(
         InlineKeyboardButton(text="Удалить правило", callback_data=f"delete-rule_{rule.id}@{randint(1, 100)}"))
 
+    if rule.folder_id:
+        keyboard.add(
+            InlineKeyboardButton(text="Убрать из папки", callback_data=f"remove-from-folder_{rule.id}@{randint(1, 100)}"))
+
     keyboard.add(InlineKeyboardButton(
         text="Назад 🔙", callback_data=f"all-rules@{randint(1, 100)}"))
     return keyboard
 
+
+def folder_menu(folder: Folder, rules):
+    keyboard = InlineKeyboardMarkup()
+
+    if folder.is_enabled:
+        keyboard.add(
+            InlineKeyboardButton(text="Отключить", callback_data=f"disable-folder_{folder.id}@{randint(1, 100)}"))
+    else:
+        keyboard.add(
+            InlineKeyboardButton(text="Включить ", callback_data=f"enable-folder_{folder.id}@{randint(1, 100)}"))
+
+    for i, rule in enumerate(rules):
+        status = "🟢" if rule.is_enabled else "🔴"
+        keyboard.add(
+            InlineKeyboardButton(text=f"{status}  {rule.name}", callback_data=f"rule_{rule.id}@{randint(1, 100)}"))
+
+    keyboard.add(
+        InlineKeyboardButton(text="Удалить папку", callback_data=f"delete-folder_{folder.id}@{randint(1, 100)}"))
+
+    keyboard.add(InlineKeyboardButton(
+        text="Назад 🔙", callback_data=f"all-rules@{randint(1, 100)}"))
+    return keyboard
 
 def add_filter_trigger_menu():
     keyboard = InlineKeyboardMarkup()
