@@ -6,7 +6,6 @@ from models import Rule, Filter, User, Forward, Folder
 import telebot
 import menu
 
-
 api_token = config("BOT_API", cast=str)
 
 bot = telebot.TeleBot(api_token)
@@ -264,9 +263,6 @@ def add_rule_direction(message: telebot.types.Message):
             message.chat.id, "Введите число 1, 2 или 3")
         bot.register_next_step_handler(msg, add_rule_direction)
         return
-    direction_emodji = ['🔄', '➡', '⬅']
-    temp_rules[message.chat.id][
-        'name'] = f"{temp_rules[message.chat.id]['first_user_name']} {direction_emodji[int(temp_rules[message.chat.id]['direction']) - 1]} {temp_rules[message.chat.id]['second_user_name']}"
 
     rule = add_rule(message.chat.id)
     keyboard = menu.main_menu(get_user(message.chat.id).status)
@@ -284,6 +280,13 @@ def add_rule_first_user_contact_name(message: telebot.types.Message):
     msg = bot.send_message(
         message.chat.id, "Куда будем пересылать?", reply_markup=menu.add_rule_type_menu(2))
 
+
+def add_rule_name(message: telebot.types.Message):
+    temp_rules[message.chat.id]['name'] = message.text
+
+    msg = bot.send_message(
+        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
+    bot.register_next_step_handler(msg, add_rule_direction)
 
 def add_rule_first_user(message: telebot.types.Message, type: int):
     if type == 1:
@@ -350,8 +353,8 @@ def add_rule_second_user_contact_name(message: telebot.types.Message):
     temp_rules[message.chat.id]['second_user_id'] = message.text
 
     msg = bot.send_message(
-        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
-    bot.register_next_step_handler(msg, add_rule_direction)
+        message.chat.id, "Напишите название правила")
+    bot.register_next_step_handler(msg, add_rule_name)
 
 
 def add_rule_second_user(message: telebot.types.Message, type: int):
@@ -395,8 +398,8 @@ def add_rule_second_user(message: telebot.types.Message, type: int):
         temp_rules[message.chat.id]['second_user_name'] = f"chat@{message.text}"
 
     msg = bot.send_message(
-        message.chat.id, "Выберите направление пересылки сообщений:\n1. В две стороны\n2. От первого пользователя второму\n3. От второго первому\nВведите число 1, 2 или 3")
-    bot.register_next_step_handler(msg, add_rule_direction)
+        message.chat.id, "Напишите название правила")
+    bot.register_next_step_handler(msg, add_rule_name)
 
 
 def add_filter_trigger_phrase(message: telebot.types.Message):
@@ -551,8 +554,9 @@ def callback_inline(call: telebot.types.CallbackQuery):
                                       get_user(call.message.chat.id).status))
             return
         keyboard = menu.rule_menu(rule)
+        rule_participants = f"{rule.first_user_tg_id} { ['🔄', '➡', '⬅'][int(rule.direction) - 1]} {rule.second_user_tg_id}"
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              message_id=call.message.message_id, text=f"Правило [{rule.id}] {rule.name}", reply_markup=keyboard)
+                              message_id=call.message.message_id, text=f"Правило [{rule.id}] {rule.name} \n {rule_participants}", reply_markup=keyboard)
 
     # enable rule
     elif call.data.startswith('enable-rule_'):

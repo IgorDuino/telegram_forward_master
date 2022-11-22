@@ -296,9 +296,9 @@ def main():
         session.close()
 
     @app.on_message(filters.group)
-    async def chat_handler(client, message):
+    async def chat_handler(client, message: pyrogram.types.Message):
         try:
-            if message.from_user.id == telegram_id:
+            if str(message.from_user.id) == str(telegram_id):
                 return
         except:
             pass
