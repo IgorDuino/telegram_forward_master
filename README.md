@@ -1,4 +1,7 @@
-# forward_messages_userbot
+# Forward master userbot
+
+# This is just open & free version, if you want to get full version with web panel administration, multy account system, updates for a 2 year, compatibility with new Telegram features and other features contact me [@igorduino](https://t.me/igorduino)
+# Это открытая и бесплатная версия, если вы хотите получить полную версию с администрированием через бота и веб-панель, системой множественных учетных записей, обновлениями за 2 года, совместимостью с новыми функциями Telegram и другими фишками, свяжитесь со мной [@igorduino](https://t.me/igorduino)
 
 **0. Pre-installation**
 1. Install docker and docker-compose
